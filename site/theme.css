@@ -1,0 +1,25 @@
+/* nixsh theme — overrides only accent/font/radius of the foss v1 base.
+   Violet: unused elsewhere in the nix* family. nixfish's pink (#f472b6) was
+   deliberately not inherited, since nixllm already uses it. */
+
+:root {
+  --accent: #a78bfa;
+  --accent-hover: #c4b5fd;
+  --accent-dim: rgba(167, 139, 250, 0.12);
+  --accent-glow: rgba(167, 139, 250, 0.08);
+  --accent-text: #0b1120;
+
+  --shadow-terminal: 0 0 0 1px var(--border), 0 8px 40px rgba(0,0,0,0.3), 0 0 80px var(--accent-glow);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --accent: #6d28d9;
+    --accent-hover: #5b21b6;
+    --accent-dim: rgba(109, 40, 217, 0.08);
+    --accent-glow: rgba(109, 40, 217, 0.06);
+    --accent-text: #ffffff;
+
+    --shadow-terminal: 0 0 0 1px rgba(0,0,0,0.08), 0 8px 40px rgba(0,0,0,0.15);
+  }
+}

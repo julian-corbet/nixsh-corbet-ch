@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- nixsh — replace with your project's real name -->
+  <title>nixsh &mdash; Every shell on every machine, declared.</title>
+  <meta name="description" content="Declarative fish, bash and zsh configuration across NixOS and foreign distros. Shared environment rendered into each shell's own syntax; the binary stays the system's.">
+
+  <!-- Keep these two theme-color values in sync with tokens.css
+       --bg (dark) and --bg (light default), respectively. -->
+  <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+
+  <meta property="og:title" content="nixsh">
+  <meta property="og:description" content="Declarative fish, bash and zsh configuration across NixOS and foreign distros. Shared environment rendered into each shell's own syntax; the binary stays the system's.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nixsh.corbet.ch">
+  <meta property="og:image" content="https://nixsh.corbet.ch/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="nixsh — declarative shell configuration">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://nixsh.corbet.ch/og-image.png">
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
+
+  <!-- Load order matters: the hosted base defines tokens + structure,
+       theme.css overrides a subset of tokens afterward. -->
+  <link rel="stylesheet" href="https://v1.foss.design.corbet.ch/assets/base.css">
+  <link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+
+<header class="hero">
+  <nav>
+    <a href="/" class="nav-brand">nixsh</a>
+    <div class="nav-links">
+      <a href="/docs">Docs</a>
+      <a href="https://github.com/julian-corbet/nixsh">GitHub</a>
+      <a href="#install">Install</a>
+      <details class="nav-family">
+        <summary>nix* family</summary>
+        <nav class="nav-family-panel" aria-label="The nix* project family">
+          <a href="https://nixapps.corbet.ch">nixapps <span>cluster apps as typed Nix</span></a>
+          <a href="https://nixarch.corbet.ch">nixarch <span>Arch's AUR breadth, Nix's declarative config</span></a>
+          <a href="https://nixbackup.corbet.ch">nixbackup <span>verify the backup, not the exit code</span></a>
+          <a href="https://nixgpu.corbet.ch">nixgpu <span>share one GPU by priority</span></a>
+          <a href="https://nixk3s.corbet.ch">nixk3s <span>the host is a flake, the cluster is git</span></a>
+          <a href="https://nixllm.corbet.ch">nixllm <span>the model store IS the registry</span></a>
+          <a href="https://nixnas.corbet.ch">nixnas <span>declarative NAS on a USB stick</span></a>
+          <a href="https://nixnet.corbet.ch">nixnet <span>the best live path to a host</span></a>
+          <a href="https://nixpush.corbet.ch">nixpush <span>one send call, any notification backend</span></a>
+          <a href="https://nixram.corbet.ch">nixram <span>RAM tuning that fits your machine</span></a>
+          <a href="https://nixremote.corbet.ch">nixremote <span>remote apps as real windows</span></a>
+          <a href="https://nixsh.corbet.ch" aria-current="page">nixsh <span>every shell on every machine, declared</span></a>
+          <a href="https://nixshare.corbet.ch">nixshare <span>NFS/CIFS shares that unstick themselves</span></a>
+          <a href="https://nixvibe.corbet.ch">nixvibe <span>a coding agent in a browser terminal</span></a>
+          <a href="https://nixvps.corbet.ch">nixvps <span>NixOS on sub-1GB VPSes</span></a>
+        </nav>
+      </details>
+    </div>
+  </nav>
+
+  <div class="hero-content">
+    <h1>nixsh</h1>
+    <p class="tagline">Every shell on every machine, declared.</p>
+    <p class="subtitle">One declaration renders into fish, bash and zsh — each in its own syntax. What genuinely differs between shells stays per-shell, unabstracted. And the shell binary comes from your system, not from a second copy on PATH.</p>
+    <div class="cta">
+      <a href="#install" class="btn btn-primary">Get Started</a>
+      <a href="https://github.com/julian-corbet/nixsh" class="btn btn-secondary">View on GitHub</a>
+    </div>
+  </div>
+
+  <!-- Optional: drop this whole .hero-demo block if the project has
+       no terminal/CLI story to show. -->
+  <div class="hero-demo">
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="terminal-title">one declaration, three shells</span>
+      </div>
+      <pre class="terminal-body"><code><span class="prompt">$</span> grep EDITOR ~/.config/fish/conf.d/00-nixsh.fish ~/.bashrc
+<span class="output">fish:  set -gx EDITOR &quot;hx&quot;
+bash:  export EDITOR=&quot;hx&quot;</span>
+
+<span class="prompt">$</span> command -v fish
+<span class="output">/usr/bin/fish        # the system&#39;s, not a second copy</span></code></pre>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="how-it-works">
+  <div class="container">
+    <h2>How it works</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Add the input</h3>
+        <p>No nixpkgs of its own — nixsh takes <code>pkgs</code> from your evaluation, so it never adds a second nixpkgs to your closure.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Import a backend</h3>
+        <p><code>homeModules.nixsh</code> writes config. <code>nixosModules.nixsh</code> also installs the shells, because on NixOS the system is nix. <code>systemManagerModules.nixsh</code> publishes package names for a foreign distro&#39;s own reconciler.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Declare once</h3>
+        <p>Enable the shells you want, set the shared environment, and add per-shell config where the shells genuinely differ.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="container">
+    <h2>Features</h2>
+    <!-- Repeat .feature blocks as needed; auto-fit grid reflows. -->
+    <div class="feature-grid">
+      <div class="feature">
+        <h3>One environment, three syntaxes</h3>
+        <p>Environment variables and PATH are declared once. fish gets <code>set -gx</code> and <code>fish_add_path</code>; bash and zsh get <code>export</code>. It is the only layer that genuinely translates, so it is the only layer that is shared.</p>
+      </div>
+      <div class="feature">
+        <h3>Aliases stay per-shell, on purpose</h3>
+        <p>fish is not POSIX. A generic alias DSL rendering to three syntaxes would render to three syntaxes badly, so aliases, functions and completions are declared per shell and never translated. The restraint is the design.</p>
+      </div>
+      <div class="feature">
+        <h3>The binary stays the system&#39;s</h3>
+        <p>home-manager&#39;s <code>programs.fish.enable</code> installs its own fish, which on a foreign distro lands ahead of <code>/usr/bin/fish</code> — so your login shell and your interactive shell become different builds. nixsh writes config only and never enables it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Optional: drop this whole section if the project has no
+     architecture story worth diagramming. -->
+<section class="architecture">
+  <div class="container">
+    <h2>Architecture</h2>
+    <pre class="arch-diagram"><code>  nixsh.environment.variables.EDITOR = "hx"
+                    |
+        +-----------+-----------+
+        |           |           |
+      fish        bash         zsh
+        |           |           |
+   set -gx      export      export
+        |           |           |
+  conf.d/     initExtra   initExtra
+  00-nixsh.fish
+
+  binary:  /usr/bin/fish   <- the system's
+           (never a second copy on PATH)</code></pre>
+    <div class="arch-details">
+      <div class="arch-detail">
+        <h3>Shared where it translates</h3>
+        <p>The environment layer is the only thing abstracted, because the only difference is the export keyword. Everything else is passed through verbatim in the shell&#39;s own language.</p>
+      </div>
+      <div class="arch-detail">
+        <h3>Config in nix, binaries in the system</h3>
+        <p>On NixOS the system is nix, so the shells are installed. Anywhere else they come from the distro and nixsh writes config only — one shell per machine, not two.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="install">
+  <div class="container">
+    <h2>Install</h2>
+    <div class="install-grid">
+      <div class="install-method">
+        <h3>Download binary</h3>
+        <p>Grab the latest release for your platform:</p>
+        <a href="https://github.com/julian-corbet/nixsh/releases/latest" class="btn btn-primary">Download from GitHub</a>
+      </div>
+      <div class="install-method">
+        <h3>Foreign distro (Arch, CachyOS)</h3>
+        <!-- Wide commands scroll horizontally inside <pre>, never the page. -->
+        <pre><code>nixarch.packages.pacman = config.nixsh.archPackages;</code></pre>
+      </div>
+      <div class="install-method">
+        <h3>Build from source</h3>
+        <pre><code>git clone https://github.com/julian-corbet/nixsh
+cd nixsh
+make install</code></pre>
+        <p>Nix with flakes enabled. No other inputs — nixsh pulls no nixpkgs of its own.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Optional: a commands/reference table. Wrap in .table-scroll if
+     any row content can overflow narrow viewports. -->
+<section class="commands">
+  <div class="container">
+    <h2>Commands</h2>
+    <div class="table-scroll">
+      <table>
+        <tbody>
+          <tr><td><code>nixsh.fish.enable = true;</code></td><td>Config for fish, written as a <code>conf.d</code> drop-in so it composes with whatever already owns <code>config.fish</code>.</td></tr>
+          <tr><td><code>nixsh.environment.variables.EDITOR = &quot;hx&quot;;</code></td><td>Lands in every enabled shell at once, each in its own syntax.</td></tr>
+          <tr><td><code>nixsh.fish.universalVariables.fish_greeting = &quot;&quot;;</code></td><td>fish owns <code>fish_variables</code> itself, so universal variables are applied idempotently at startup — the one piece of fish state a config file cannot declare.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="/docs">Docs</a>
+      <a href="https://github.com/julian-corbet/nixsh">Source</a>
+      <a href="https://github.com/julian-corbet/nixsh/releases">Releases</a>
+      <a href="https://github.com/julian-corbet/nixsh/issues">Issues</a>
+    </div>
+    <p>
+      <a href="https://github.com/julian-corbet/nixsh/blob/main/LICENSE">MIT</a> &middot;
+      <a href="https://github.com/julian-corbet">Julian Y. Richard Corbet</a>
+      <!-- Optional "Powered by X" credit — delete if not applicable:
+      &middot; Powered by <a href="https://github.com/nix-community/home-manager">home-manager</a>
+      -->
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
