@@ -1,11 +1,10 @@
 #
 # nixsh — every shell on every machine, declared.
 #
-# Absorbs nixfish. That module's real contribution was never fish-specific: it was the ADOPTION
-# pattern (how to take over a config file a vendor package or years of hand-editing already owns)
-# plus a typed primitive for fish universal variables. The first problem is identical for bash and
-# zsh -- /etc/bash.bashrc and a hand-edited ~/.bashrc are the same situation -- so it generalises,
-# and keeping a fish-only module alongside this one would mean two homes for fish.
+# ONE MODULE FOR EVERY SHELL, fish included: the ADOPTION pattern (how to take over a config file
+# a vendor package or years of hand-editing already owns) is identical for bash, zsh and fish --
+# /etc/bash.bashrc and a hand-edited ~/.bashrc are the same situation fish's fish_variables is --
+# so splitting fish into its own module would just mean two homes for the same logic.
 #
 # WHAT IS SHARED AND WHAT IS NOT. This is the whole design, and getting it wrong is the obvious
 # trap. Shared: environment variables and PATH, because the only difference between shells there
@@ -47,9 +46,9 @@ in
 {
   options.nixsh = {
     fish = mkShell "fish" // {
-      # Carried from nixfish: the one piece of fish state home-manager genuinely cannot own,
-      # because fish writes it itself at runtime into fish_variables. Declaring it here makes it
-      # reproducible instead of a file nobody remembers creating.
+      # The one piece of fish state home-manager genuinely cannot own, because fish writes it
+      # itself at runtime into fish_variables. Declaring it here makes it reproducible instead
+      # of a file nobody remembers creating.
       universalVariables = lib.mkOption {
         type = lib.types.attrsOf lib.types.str;
         default = { };
