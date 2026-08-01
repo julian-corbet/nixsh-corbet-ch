@@ -53,11 +53,30 @@ in
       # sake, not a general "NixOS now owns fish config" switch. See this file's own header.
       programs.fish.enable = true;
       programs.fish.interactiveShellInit = cfg.greetingInvocations.fish;
+
+      # generateCompletions defaults to true on `programs.fish.enable`, which is NOT narrow at
+      # all: it walks `environment.systemPackages` and builds a completions derivation PER
+      # PACKAGE. Measured live wiring this into a real host with a large ops toolchain
+      # (julian-corbet/infra's corbet-server, ~100 packages): every one of them gained its own
+      # "_fish" completions build, plus `man` (1.9 MiB) and man-db caching pulled in as a further
+      # side effect of THAT (fish.nix's own `documentation.man.cache.enable = mkDefault true`) --
+      # tens of new derivations and several MiB of closure for a feature nobody asked for, on a
+      # backend whose own header promises "narrowly, for the greeting's own sake". Off, so that
+      # promise is actually true rather than merely stated.
+      programs.fish.generateCompletions = false;
+      documentation.man.cache.enable = false;
+      documentation.man.cache.generateAtRuntime = false;
     })
 
     (lib.mkIf (greetingOn && cfg.zsh.enable) {
       programs.zsh.enable = true;
       programs.zsh.interactiveShellInit = cfg.greetingInvocations.zsh;
+
+      # Same reasoning as `programs.fish.generateCompletions` above, smaller blast radius but the
+      # identical class of unrequested default: `enableCompletion` (zsh's own name for it)
+      # defaults true and pulls `nix-zsh-completions` into the closure as a side effect nothing
+      # about the greeting needed.
+      programs.zsh.enableCompletion = false;
     })
 
     (lib.mkIf (greetingOn && cfg.bash.enable) {
