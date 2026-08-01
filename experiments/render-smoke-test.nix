@@ -8,9 +8,23 @@ let
   lib = (import nixpkgs { }).lib;
 
   # Bootstrap eval, no overrides at all -- just to pull out the shipped fastfetch preset as a
-  # plain value, the way a real consumer's `config.nixsh.greeting.presets.fastfetch` read would.
+  # plain value, the way a real consumer's `config.nixsh.greetingPresets.fastfetch` read would.
   presetEval = lib.evalModules { modules = [ ../modules/nixsh.nix ]; };
-  fastfetchPreset = presetEval.config.nixsh.greeting.presets.fastfetch;
+  fastfetchPreset = presetEval.config.nixsh.greetingPresets.fastfetch;
+
+  # The exact shape that caused a real infinite recursion before greetingPresets moved out from
+  # under `greeting` itself (hit live wiring this into julian-corbet/infra's common.nix): a
+  # module-function form that reads `config.nixsh.greetingPresets.fastfetch` to DEFINE
+  # `nixsh.greeting` in the same evaluation. Proves the fix, not just that presets exist.
+  selfReferentialEval = lib.evalModules {
+    modules = [
+      ../modules/nixsh.nix
+      ({ config, ... }: {
+        nixsh.fish.enable = true;
+        nixsh.greeting = config.nixsh.greetingPresets.fastfetch;
+      })
+    ];
+  };
 
   eval = lib.evalModules {
     modules = [
@@ -104,6 +118,13 @@ in
   greetingOffByDefaultCommand = evalNoGreeting.config.nixsh.greeting.command == "";
   greetingOffByDefaultNoFishBlock = !(lib.hasInfix "is-interactive"
     evalNoGreeting.config.nixsh.rcFiles.".config/fish/config.fish");
+
+  # THE REGRESSION: `nixsh.greeting = config.nixsh.greetingPresets.fastfetch;`, written as a real
+  # consumer would (a module function receiving `config`, not a literal value substituted by the
+  # test harness) -- this exact shape hit `error: infinite recursion encountered` before
+  # `greetingPresets` moved out from under `greeting` itself. Evaluating it at all, to any answer,
+  # is the proof; the specific value confirms it is the RIGHT preset, not just a lucky non-crash.
+  selfReferentialAssignmentResolves = selfReferentialEval.config.nixsh.greeting.command == "fastfetch";
 
   # nixsh itself installs nothing for the greeting -- no auto-added package name of any kind,
   # unlike the shells (which DO publish `archPackages`). A consumer wires up their own command's

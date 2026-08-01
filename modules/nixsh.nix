@@ -165,7 +165,19 @@ in
     # one-liner, nothing) -- that choice, and any config content the chosen tool reads, is a
     # per-consumer VALUE, same split as `terminal` above: the CONCEPT of a guarded greeting is
     # generic and every consumer wants it: WHICH command is not, and belongs to whoever composes
-    # this module. `presets.fastfetch` below is the one deliberate exception -- see its own doc.
+    # this module. `greetingPresets` below is the one deliberate exception -- see its own doc.
+    #
+    # `greetingPresets` is a SIBLING of `greeting`, not nested under it (`greeting.presets.*`, the
+    # first shape this shipped with) -- deliberately, not a style choice: a consumer's whole point
+    # is writing `nixsh.greeting = config.nixsh.greetingPresets.fastfetch;`, assigning the ENTIRE
+    # `greeting` attrset in one go. Nesting the preset under `greeting` itself made that exact
+    # assignment read its own target while defining it -- resolving `nixsh.greeting` requires
+    # resolving `nixsh.greeting.presets.fastfetch` first, which is only reachable THROUGH
+    # `nixsh.greeting` -- a real infinite recursion, not a style objection, hit live wiring this
+    # into julian-corbet/infra's `home/richc/common.nix` (`error: infinite recursion encountered`,
+    # `modules.nix:880`, `nixsh.greeting.presets.fastfetch` named directly in the trace). Moving
+    # the preset to a sibling option breaks the cycle: reading `greetingPresets` never has to pass
+    # through `greeting` to get there.
     greeting = {
       command = lib.mkOption {
         type = lib.types.str;
@@ -179,8 +191,8 @@ in
           "..."` -- never sees it. Empty string, the default, disables the greeting outright: no
           conditional block is rendered at all, not even an inert one.
 
-          Generic on purpose. This is not a fastfetch option -- see `presets.fastfetch` below for
-          a ready-made value if that is what you want, or name anything else entirely.
+          Generic on purpose. This is not a fastfetch option -- see `greetingPresets` for a
+          ready-made value if that is what you want, or name anything else entirely.
         '';
       };
 
@@ -205,36 +217,39 @@ in
             The file's literal content, verbatim. Generic on purpose -- nixsh does not parse,
             validate or otherwise know what format this is; a consumer who wants JSON renders it
             themselves (`builtins.toJSON { ... }`) before assigning it here, exactly as
-            `presets.fastfetch` below does for its own value.
+            `greetingPresets.fastfetch` does for its own value.
           '';
         };
       };
+    };
 
-      presets.fastfetch = lib.mkOption {
-        readOnly = true;
-        type = lib.types.attrs;
-        default = {
-          command = "fastfetch";
-          configFile = {
-            path = "fastfetch/config.jsonc";
-            text = builtins.toJSON fastfetchPresetConfig;
-          };
+    greetingPresets.fastfetch = lib.mkOption {
+      readOnly = true;
+      type = lib.types.attrs;
+      default = {
+        command = "fastfetch";
+        configFile = {
+          path = "fastfetch/config.jsonc";
+          text = builtins.toJSON fastfetchPresetConfig;
         };
-        description = ''
-          A ready-made fastfetch preset, based on fastfetch's own upstream default config -- see
-          `fastfetchPresetConfig`'s own header comment in this module for the full account of
-          what it contains and why it is safe to ship in a public repo (config only selects which
-          MODULES render; every actual value is produced at runtime on whoever's screen it prints
-          to, never stored here).
-
-          Reference it wholesale (`nixsh.greeting = config.nixsh.greeting.presets.fastfetch;`),
-          tweak it (`config.nixsh.greeting.presets.fastfetch // { configFile.text =
-          builtins.toJSON (fastfetchAttrs // { modules = [ ... ]; }); }`), or ignore it entirely
-          and set `nixsh.greeting` to something else -- `nixsh.greeting.command` still defaults to
-          `""` (disabled) regardless of this preset existing; shipping a default value here is not
-          the same as turning the greeting on.
-        '';
       };
+      description = ''
+        A ready-made fastfetch preset, in `greeting`'s own shape -- based on fastfetch's own
+        upstream default config -- see `fastfetchPresetConfig`'s own header comment in this
+        module for the full account of what it contains and why it is safe to ship in a public
+        repo (config only selects which MODULES render; every actual value is produced at
+        runtime on whoever's screen it prints to, never stored here).
+
+        Reference it wholesale (`nixsh.greeting = config.nixsh.greetingPresets.fastfetch;`),
+        tweak it (`config.nixsh.greetingPresets.fastfetch // { configFile.text =
+        builtins.toJSON (fastfetchAttrs // { modules = [ ... ]; }); }`), or ignore it entirely
+        and set `nixsh.greeting` to something else -- `nixsh.greeting.command` still defaults to
+        `""` (disabled) regardless of this preset existing; shipping a default value here is not
+        the same as turning the greeting on.
+
+        NOT nested under `greeting` itself (`greeting.presets.fastfetch`) -- see `greeting`'s own
+        header comment for why that shape is a real infinite recursion, not merely untidy.
+      '';
     };
 
     environment = {
