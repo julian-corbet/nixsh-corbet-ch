@@ -24,6 +24,11 @@ let
           # words; both fish's `alias` builtin and POSIX `alias name=value` reject that outright.
           fish.aliases."tmux@x" = ''ssh -t x "tmux new -A -s tmux@x"'';
           bash.aliases."tmux@x" = ''ssh -t x "tmux new -A -s tmux@x"'';
+
+          fastfetch = {
+            enable = true;
+            config.modules = [ "title" "os" ];
+          };
         };
       }
     ];
@@ -49,5 +54,14 @@ in
     lib.hasInfix "alias tmux@x 'ssh -t x \"tmux new -A -s tmux@x\"'" rc.".config/fish/config.fish";
   bashAliasSurvivesEmbeddedQuotes =
     lib.hasInfix "alias tmux@x='ssh -t x \"tmux new -A -s tmux@x\"'" rc.".bashrc";
+  # fastfetch: guarded for fish (conf.d sources unconditionally), bare for the POSIX shells
+  # (.bashrc/.zshrc are only ever read for an interactive shell in the first place).
+  fastfetchGuardedInFish = lib.hasInfix "status is-interactive; and fastfetch" rc.".config/fish/config.fish";
+  fastfetchBareInBash = lib.hasInfix "\nfastfetch" rc.".bashrc" && !(lib.hasInfix "is-interactive" rc.".bashrc");
+  fastfetchBareInZsh = lib.hasInfix "\nfastfetch" rc.".zshrc" && !(lib.hasInfix "is-interactive" rc.".zshrc");
+  fastfetchConfigJSON = eval.config.nixsh.fastfetchConfigJSON;
+  fastfetchConfigHasModules = lib.hasInfix "\"title\",\"os\"" (lib.replaceStrings [ " " ] [ "" ] eval.config.nixsh.fastfetchConfigJSON);
+  # fastfetch adds itself to the pacman package list too, alongside the shells.
+  fastfetchInArchPackages = lib.elem "fastfetch" eval.config.nixsh.archPackages;
   archPackages = eval.config.nixsh.archPackages;
 }

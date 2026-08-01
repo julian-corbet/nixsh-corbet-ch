@@ -58,6 +58,19 @@ let
       description = "Aliases for ${name}. Per-shell on purpose: alias syntax and semantics differ enough between fish and POSIX shells that sharing them would be a lie.";
     };
   };
+
+  # fastfetch's own invocation, per shell -- the one place shell syntax genuinely differs for it.
+  # fish's `conf.d`/NixOS's own generated config.fish both source their content UNCONDITIONALLY,
+  # on every invocation of the shell, interactive or not (confirmed live: a bare `ssh host fish -c
+  # ...` sources every conf.d file just like an interactive login does) -- so fish needs an
+  # explicit interactive guard or a script invocation dumps a system banner into the stdout of
+  # anything parsing it. bash's `.bashrc`/NixOS's `/etc/bashrc` and zsh's `.zshrc` do not have that
+  # problem: both shells only read those files for an INTERACTIVE shell by their own native
+  # behaviour (a non-interactive `bash -c`/`zsh -c` never sources them at all, confirmed against
+  # both shells' own manuals), and NixOS's own `/etc/bashrc` template adds a second, explicit `[ -n
+  # "$PS1" ]` guard around interactiveShellInit content on top of that -- so a bare invocation is
+  # correct and sufficient for both, on every backend this module has.
+  fastfetchInvocationFor = shell: if shell == "fish" then "status is-interactive; and fastfetch" else "fastfetch";
 in
 {
   options.nixsh = {
@@ -73,6 +86,32 @@ in
     };
     bash = mkShell "bash";
     zsh = mkShell "zsh";
+
+    # fastfetch: ONE declaration, all three shells, both backends -- unlike the shells
+    # themselves, fastfetch's binary and its config are completely shell-agnostic (one JSONC
+    # file, read by whichever shell happens to invoke the binary), so there is no per-shell
+    # option surface to speak of here, only an enable flag and the config content. The per-shell
+    # part that DOES differ (the invocation line, guarded or not) is computed once, internally
+    # (`fastfetchInvocationFor` above), and applied identically by every backend below rather than
+    # letting each backend re-derive its own guess at it.
+    fastfetch = {
+      enable = lib.mkEnableOption "a declarative fastfetch greeting on every enabled shell (config only -- installing the binary is still each backend's own job, same NIX OWNS CONFIG split as the shells)";
+
+      config = lib.mkOption {
+        type = lib.types.attrs;
+        default = { };
+        example = { modules = [ "title" "os" "packages" ]; };
+        description = ''
+          fastfetch's own config, as a Nix attrset -- rendered with `builtins.toJSON`. Plain JSON
+          is valid JSONC, which is what fastfetch actually reads
+          (`~/.config/fastfetch/config.jsonc`, or `/etc/xdg/fastfetch/config.jsonc` on a backend
+          with no per-user home directory to write into). See fastfetch's own
+          `--list-modules`/`--list-config-paths` and the presets under
+          `/usr/share/fastfetch/presets/` (or nixpkgs' `fastfetch` output) for the schema this
+          feeds.
+        '';
+      };
+    };
 
     environment = {
       variables = lib.mkOption {
@@ -130,10 +169,27 @@ in
       readOnly = true;
       description = "Generated rc content, keyed by home-relative path. The home-manager backend writes these; a consumer can inspect them without applying anything.";
     };
+
+    fastfetchConfigJSON = lib.mkOption {
+      type = lib.types.str;
+      readOnly = true;
+      description = "cfg.fastfetch.config rendered to JSON text. A backend writes this to config.jsonc; a consumer can inspect it without applying anything.";
+    };
+
+    fastfetchInvocations = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      readOnly = true;
+      description = "The fastfetch invocation line for each shell in the catalogue, guarded where the shell's own composition point needs it. A NixOS-backend consumer with no rcFiles/conf.d mechanism of its own reads this directly.";
+    };
   };
 
   config = {
-    nixsh.archPackages = map (s: catalogue.${s}.arch) enabled;
+    nixsh.archPackages = (map (s: catalogue.${s}.arch) enabled)
+      ++ lib.optional cfg.fastfetch.enable "fastfetch";
+
+    nixsh.fastfetchConfigJSON = builtins.toJSON cfg.fastfetch.config;
+
+    nixsh.fastfetchInvocations = lib.genAttrs (lib.attrNames catalogue) fastfetchInvocationFor;
 
     # Alias values are wrapped in SINGLE quotes, per-shell-escaped, never bare double quotes: a
     # value containing its own embedded `"` -- an SSH remote command is the common real case,
@@ -160,6 +216,7 @@ in
         (lib.optionalString (s == "fish") (lib.concatStringsSep "\n"
           (lib.mapAttrsToList (n: v: "set -q ${n}; or set -U ${n} ${escapeFishSingle v}") cfg.fish.universalVariables)))
         cfg.${s}.interactiveInit
+        (lib.optionalString cfg.fastfetch.enable cfg.fastfetchInvocations.${s})
       ])))
       enabled);
   };

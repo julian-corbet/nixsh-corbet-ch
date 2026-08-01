@@ -75,6 +75,15 @@ in
       xdg.configFile."fish/conf.d/00-nixsh.fish".text = body "fish";
     })
 
+    # fastfetch's own config -- independent of which shells are enabled, since the file is read
+    # by the BINARY, not sourced by a shell. `~/.config/fastfetch/config.jsonc` is fastfetch's own
+    # first-listed config path (`fastfetch --list-config-paths`), so no `--config` flag is needed
+    # at any of the per-shell call sites this option's value feeds (see modules/nixsh.nix's own
+    # `fastfetchInvocationFor`).
+    (lib.mkIf cfg.fastfetch.enable {
+      xdg.configFile."fastfetch/config.jsonc".text = cfg.fastfetchConfigJSON;
+    })
+
     # bash/zsh have no conf.d convention, so there are two routes and the host's own choice picks
     # which one applies. This used to be a catch-22: `initExtra` is only sourced when
     # programs.<shell>.enable is on, but turning that on installs the shell from nixpkgs -- the
