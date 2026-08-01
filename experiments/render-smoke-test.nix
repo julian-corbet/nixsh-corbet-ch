@@ -18,6 +18,12 @@ let
           environment.path = [ "/opt/tools/bin" ];
           fish.universalVariables.fish_greeting = "";
           bash.aliases.ll = "ls -alh";
+          # The regression case: an alias value with its OWN embedded double quotes -- an SSH
+          # remote command is the real one that broke (julian-corbet/infra's elitebook host,
+          # 2026-08-01). Naive `alias name="value"` rendering used to mangle this into several
+          # words; both fish's `alias` builtin and POSIX `alias name=value` reject that outright.
+          fish.aliases."tmux@x" = ''ssh -t x "tmux new -A -s tmux@x"'';
+          bash.aliases."tmux@x" = ''ssh -t x "tmux new -A -s tmux@x"'';
         };
       }
     ];
@@ -36,5 +42,12 @@ in
   fishUniversal = lib.hasInfix "set -q fish_greeting; or set -U" rc.".config/fish/config.fish";
   # per-shell aliases must NOT leak into other shells.
   aliasStaysInBash = (lib.hasInfix "alias ll=" rc.".bashrc") && !(lib.hasInfix "alias ll=" rc.".zshrc");
+  # An embedded double quote in an alias value must render as ONE token in each shell's own
+  # alias syntax -- fish's two-word `alias NAME 'value'`, POSIX's one-word `alias NAME='value'`
+  # -- with the value's own quotes passed through literally, not merged into the wrapper quoting.
+  fishAliasSurvivesEmbeddedQuotes =
+    lib.hasInfix "alias tmux@x 'ssh -t x \"tmux new -A -s tmux@x\"'" rc.".config/fish/config.fish";
+  bashAliasSurvivesEmbeddedQuotes =
+    lib.hasInfix "alias tmux@x='ssh -t x \"tmux new -A -s tmux@x\"'" rc.".bashrc";
   archPackages = eval.config.nixsh.archPackages;
 }

@@ -16,11 +16,60 @@
 let
   cfg = config.nixsh;
   body = shell: cfg.rcFiles.${(import ../lib/shells.nix { }).${shell}.rcPath} or "";
+
+  # THE TRAP: a consumer moves a host onto `nixsh.fish.enable = true`, but leaves earlier
+  # `programs.fish.{shellInit,interactiveShellInit,shellAliases,functions}` content in place from
+  # before the move -- easy to do, since this backend deliberately COMPOSES with whatever a host
+  # already has rather than forcing a rewrite (this file's own header, "Clobbering"). That leftover
+  # content renders NOTHING: home-manager's own fish module gates its ENTIRE config block --
+  # config.fish itself included -- behind `programs.fish.enable`, and this backend deliberately
+  # never sets that option (this file's own header, "A second shell binary": setting it would
+  # install a second fish ahead of the system's on PATH). So the exact combination below is
+  # SILENT: no eval error, no output difference, a value that looks live in the source and
+  # renders to nothing at all.
+  #
+  # Measured live, not hypothetical: julian-corbet/infra's elitebook host carried this exact
+  # combination for five days (2026-07-27 to 2026-08-01) after a migration onto `nixsh.fish` left
+  # the old `programs.fish.*` block sitting there unconverted -- unnoticed until the next
+  # `home-manager switch` on that host finally applied it and quietly dropped a working shell
+  # config (aliases, functions, a per-tty session launcher, and a greeting sourced transitively
+  # through it) with no error at any point.
+  fishProgramsOrphaned =
+    cfg.fish.enable
+    && !config.programs.fish.enable
+    && (config.programs.fish.shellInit != ""
+        || config.programs.fish.interactiveShellInit != ""
+        || config.programs.fish.shellAliases != { }
+        || config.programs.fish.functions != { });
 in
 {
   imports = [ ./nixsh.nix ];
 
   config = lib.mkMerge [
+    # An ASSERTION, not `lib.warn`: the bash/zsh half of this same class of trap (nixsh's own
+    # config rendering to nothing under a different combination of options) already went through
+    # a soft-warning attempt before this backend's bash/zsh branches below were fixed to compose
+    # correctly regardless -- the warning fired on every single switch and nobody caught it. A
+    # failed build cannot be scrolled past the same way.
+    {
+      assertions = [
+        {
+          assertion = !fishProgramsOrphaned;
+          message = ''
+            nixsh.fish.enable is true, but programs.fish.{shellInit,interactiveShellInit,shellAliases,functions}
+            also has content while programs.fish.enable is not true. That content will never render:
+            home-manager's own fish module (and everything it implies, including ~/.config/fish/config.fish
+            itself) is gated entirely behind programs.fish.enable, and nixsh's home-manager backend
+            deliberately never sets it -- see modules/home.nix's own header for why.
+
+            Either move this content into nixsh.fish.interactiveInit / nixsh.fish.aliases (nixsh's own escape
+            hatch for content outside its typed primitives), or set programs.fish.enable = true yourself if you
+            actually want home-manager's own fish module active alongside nixsh (accepting a second fish binary
+            ahead of the system's on PATH -- see this backend's own header for why nixsh itself never does this).
+          '';
+        }
+      ];
+    }
     # fish: a numbered conf.d drop-in. 00- so it lands before anything a host adds there itself.
     (lib.mkIf cfg.fish.enable {
       xdg.configFile."fish/conf.d/00-nixsh.fish".text = body "fish";
