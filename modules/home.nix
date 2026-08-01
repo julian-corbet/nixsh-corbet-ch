@@ -26,19 +26,40 @@ in
       xdg.configFile."fish/conf.d/00-nixsh.fish".text = body "fish";
     })
 
-    # bash/zsh have no conf.d convention, so use home-manager's own concatenating hook. If the host
-    # does not enable programs.bash/zsh, nothing sources this -- hence the warning rather than
-    # silence, because an unsourced shell config looks identical to a wrong one.
-    (lib.mkIf cfg.bash.enable {
-      programs.bash.initExtra = body "bash";
-      warnings = lib.optional (!config.programs.bash.enable)
-        "nixsh: bash config generated but programs.bash.enable is false, so nothing sources it.";
-    })
+    # bash/zsh have no conf.d convention, so there are two routes and the host's own choice picks
+    # which one applies. This used to be a catch-22: `initExtra` is only sourced when
+    # programs.<shell>.enable is on, but turning that on installs the shell from nixpkgs -- the
+    # exact second-binary problem note 2 above exists to avoid. So the config rendered into nothing
+    # and a warning fired, which is a diagnosis, not a fix.
+    #
+    #   programs.<shell>.enable = true  -> COMPOSE via initExtra, as before. The host has accepted
+    #                                      home-manager's shell (and its binary); don't fight it.
+    #   programs.<shell>.enable = false -> OWN the rc file via home.file. Nothing else is writing
+    #                                      it in that case, so there is no clobbering risk, and the
+    #                                      config applies with no package pulled in.
+    #
+    # Net effect on a foreign distro: declared shell config actually applies, and the shell binary
+    # still comes from the system. Both, rather than a choice between them.
+    (lib.mkIf cfg.bash.enable (lib.mkMerge [
+      (lib.mkIf config.programs.bash.enable { programs.bash.initExtra = body "bash"; })
+      (lib.mkIf (!config.programs.bash.enable) {
+        home.file.".bashrc".text = ''
+          # Managed by nixsh (home-manager backend). programs.bash.enable is false on this host, so
+          # nixsh owns this file outright rather than appending to home-manager's own.
+          ${body "bash"}
+        '';
+      })
+    ]))
 
-    (lib.mkIf cfg.zsh.enable {
-      programs.zsh.initExtra = body "zsh";
-      warnings = lib.optional (!config.programs.zsh.enable)
-        "nixsh: zsh config generated but programs.zsh.enable is false, so nothing sources it.";
-    })
+    (lib.mkIf cfg.zsh.enable (lib.mkMerge [
+      (lib.mkIf config.programs.zsh.enable { programs.zsh.initExtra = body "zsh"; })
+      (lib.mkIf (!config.programs.zsh.enable) {
+        home.file.".zshrc".text = ''
+          # Managed by nixsh (home-manager backend). programs.zsh.enable is false on this host, so
+          # nixsh owns this file outright rather than appending to home-manager's own.
+          ${body "zsh"}
+        '';
+      })
+    ]))
   ];
 }
