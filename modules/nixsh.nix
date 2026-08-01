@@ -59,18 +59,90 @@ let
     };
   };
 
-  # fastfetch's own invocation, per shell -- the one place shell syntax genuinely differs for it.
-  # fish's `conf.d`/NixOS's own generated config.fish both source their content UNCONDITIONALLY,
-  # on every invocation of the shell, interactive or not (confirmed live: a bare `ssh host fish -c
-  # ...` sources every conf.d file just like an interactive login does) -- so fish needs an
-  # explicit interactive guard or a script invocation dumps a system banner into the stdout of
-  # anything parsing it. bash's `.bashrc`/NixOS's `/etc/bashrc` and zsh's `.zshrc` do not have that
-  # problem: both shells only read those files for an INTERACTIVE shell by their own native
-  # behaviour (a non-interactive `bash -c`/`zsh -c` never sources them at all, confirmed against
-  # both shells' own manuals), and NixOS's own `/etc/bashrc` template adds a second, explicit `[ -n
-  # "$PS1" ]` guard around interactiveShellInit content on top of that -- so a bare invocation is
-  # correct and sufficient for both, on every backend this module has.
-  fastfetchInvocationFor = shell: if shell == "fish" then "status is-interactive; and fastfetch" else "fastfetch";
+  # THE GREETING GUARD, per shell -- the one place this whole feature can silently go wrong, so it
+  # is written explicitly per shell rather than copy-pasted or left to positional luck (relying on
+  # "this only happens to be sourced interactively" is exactly what broke once already -- see
+  # `greeting.command`'s own option doc). Each shell tests its OWN interactive flag in its OWN
+  # idiom, wrapped in a real conditional block (not a bare `&&`/`and` chain) so a multi-statement
+  # command guards entirely, not just its first statement:
+  #   fish  -- `status is-interactive`, fish's own builtin for exactly this.
+  #   bash  -- `$-` is the flag-letters parameter every POSIX-family shell exposes; `i` is in it
+  #            iff the shell is interactive. `[[ $- == *i* ]]` is bash's own idiomatic test of it.
+  #   zsh   -- `[[ -o interactive ]]`, zsh's own extended test for a named shell option, preferred
+  #            over pattern-matching `$-` because it asks the shell directly rather than inferring.
+  # Proved able to fail AND pass, both directions, all three shells, before trusting any of it:
+  # `<shell> -c '<guard-test>'` (no `-i`) prints nothing/false for all three -- this is also
+  # exactly what `ssh host '<command>'` invokes, so it is the real failure mode, not a synthetic
+  # one -- and `<shell> -i -c '<guard-test>'` (forced interactive) prints true for all three.
+  greetingGuard = shell: command:
+    if shell == "fish" then ''
+      if status is-interactive
+        ${command}
+      end
+    ''
+    else if shell == "bash" then ''
+      if [[ $- == *i* ]]; then
+        ${command}
+      fi
+    ''
+    else ''
+      if [[ -o interactive ]]; then
+        ${command}
+      fi
+    '';
+
+  # fastfetch's own upstream default module list (`fastfetch --gen-config`, checked live against
+  # 2.66.0 on this machine, not invented) -- which is ALSO exactly what CachyOS's own vendor
+  # greeting has been rendering all along: `/usr/share/cachyos-fish-config/cachyos-config.fish`'s
+  # `fish_greeting` hook invokes bare `fastfetch`, no `--config`, no flags, so this literal
+  # upstream default IS "the Cachy config" -- there is no separate CachyOS-authored config.jsonc
+  # anywhere on disk to copy instead (checked: no `cachyos-fastfetch*` package exists, and
+  # `/etc/fastfetch`, `/etc/xdg/fastfetch` are both absent).
+  #
+  # AUDITED for anything host- or distro-specific before shipping it in a PUBLIC repo, not
+  # assumed safe because it came from a real machine: no absolute paths, no hardcoded interface
+  # or device name, no module that only resolves on Arch. Every module here (`localip`, `battery`,
+  # `packages`, ...) computes its VALUE at runtime, unconditionally, on whichever host actually
+  # runs it -- fastfetch's own logo selection auto-detects the distro from `/etc/os-release` too
+  # (there is no `logo` key in this config at all), so the identical declaration renders a CachyOS
+  # look on Arch and a NixOS look on NixOS with no per-platform branch needed here. `packages`
+  # itself already breaks its count down by manager -- pacman, nixDefault, nixUser, nixSystem,
+  # flatpak, whichever are actually present -- with zero extra config, so one declaration gives a
+  # truthful readout on both halves of a mixed fleet already, not something this preset had to add.
+  fastfetchPresetConfig = {
+    "$schema" = "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json";
+    modules = [
+      "title"
+      "separator"
+      "os"
+      "host"
+      "kernel"
+      "uptime"
+      "packages"
+      "shell"
+      "display"
+      "de"
+      "wm"
+      "wmtheme"
+      "theme"
+      "icons"
+      "font"
+      "cursor"
+      "terminal"
+      "terminalfont"
+      "cpu"
+      "gpu"
+      "memory"
+      "swap"
+      "disk"
+      "localip"
+      "battery"
+      "poweradapter"
+      "locale"
+      "break"
+      "colors"
+    ];
+  };
 in
 {
   options.nixsh = {
@@ -87,28 +159,80 @@ in
     bash = mkShell "bash";
     zsh = mkShell "zsh";
 
-    # fastfetch: ONE declaration, all three shells, both backends -- unlike the shells
-    # themselves, fastfetch's binary and its config are completely shell-agnostic (one JSONC
-    # file, read by whichever shell happens to invoke the binary), so there is no per-shell
-    # option surface to speak of here, only an enable flag and the config content. The per-shell
-    # part that DOES differ (the invocation line, guarded or not) is computed once, internally
-    # (`fastfetchInvocationFor` above), and applied identically by every backend below rather than
-    # letting each backend re-derive its own guess at it.
-    fastfetch = {
-      enable = lib.mkEnableOption "a declarative fastfetch greeting on every enabled shell (config only -- installing the binary is still each backend's own job, same NIX OWNS CONFIG split as the shells)";
-
-      config = lib.mkOption {
-        type = lib.types.attrs;
-        default = { };
-        example = { modules = [ "title" "os" "packages" ]; };
+    # greeting: ONE declaration, all three shells, both backends -- a GENERIC "run something once
+    # per interactive shell" mechanism, not a fastfetch option that happens to be named something
+    # else. nixsh has no opinion on WHICH tool a consumer runs here (fastfetch, macchina, a
+    # one-liner, nothing) -- that choice, and any config content the chosen tool reads, is a
+    # per-consumer VALUE, same split as `terminal` above: the CONCEPT of a guarded greeting is
+    # generic and every consumer wants it: WHICH command is not, and belongs to whoever composes
+    # this module. `presets.fastfetch` below is the one deliberate exception -- see its own doc.
+    greeting = {
+      command = lib.mkOption {
+        type = lib.types.str;
+        default = "";
+        example = "fastfetch";
         description = ''
-          fastfetch's own config, as a Nix attrset -- rendered with `builtins.toJSON`. Plain JSON
-          is valid JSONC, which is what fastfetch actually reads
-          (`~/.config/fastfetch/config.jsonc`, or `/etc/xdg/fastfetch/config.jsonc` on a backend
-          with no per-user home directory to write into). See fastfetch's own
-          `--list-modules`/`--list-config-paths` and the presets under
-          `/usr/share/fastfetch/presets/` (or nixpkgs' `fastfetch` output) for the schema this
-          feeds.
+          Command run once per interactive shell (fish, bash and zsh alike), guarded so a
+          non-interactive/scripted invocation -- SSH command mode
+          (`ssh host '<command>'`, which execs the login shell with `-c`, no `-i` -- the shape an
+          operator's own automation actually uses against a live host) or any other `<shell> -c
+          "..."` -- never sees it. Empty string, the default, disables the greeting outright: no
+          conditional block is rendered at all, not even an inert one.
+
+          Generic on purpose. This is not a fastfetch option -- see `presets.fastfetch` below for
+          a ready-made value if that is what you want, or name anything else entirely.
+        '';
+      };
+
+      configFile = {
+        path = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          example = "fastfetch/config.jsonc";
+          description = ''
+            Relative path for a single config file the greeting command reads, if it has one --
+            rooted at each backend's own XDG config directory (`~/.config/<path>` on the
+            home-manager backend, `/etc/xdg/<path>` on the NixOS backend, so the identical
+            relative path resolves correctly on both). null, the default, writes no file -- for
+            a command that needs none.
+          '';
+        };
+
+        text = lib.mkOption {
+          type = lib.types.str;
+          default = "";
+          description = ''
+            The file's literal content, verbatim. Generic on purpose -- nixsh does not parse,
+            validate or otherwise know what format this is; a consumer who wants JSON renders it
+            themselves (`builtins.toJSON { ... }`) before assigning it here, exactly as
+            `presets.fastfetch` below does for its own value.
+          '';
+        };
+      };
+
+      presets.fastfetch = lib.mkOption {
+        readOnly = true;
+        type = lib.types.attrs;
+        default = {
+          command = "fastfetch";
+          configFile = {
+            path = "fastfetch/config.jsonc";
+            text = builtins.toJSON fastfetchPresetConfig;
+          };
+        };
+        description = ''
+          A ready-made fastfetch preset, based on fastfetch's own upstream default config -- see
+          `fastfetchPresetConfig`'s own header comment in this module for the full account of
+          what it contains and why it is safe to ship in a public repo (config only selects which
+          MODULES render; every actual value is produced at runtime on whoever's screen it prints
+          to, never stored here).
+
+          Reference it wholesale (`nixsh.greeting = config.nixsh.greeting.presets.fastfetch;`),
+          tweak it (`config.nixsh.greeting.presets.fastfetch // { configFile.text =
+          builtins.toJSON (fastfetchAttrs // { modules = [ ... ]; }); }`), or ignore it entirely
+          and set `nixsh.greeting` to something else -- `nixsh.greeting.command` still defaults to
+          `""` (disabled) regardless of this preset existing; shipping a default value here is not
+          the same as turning the greeting on.
         '';
       };
     };
@@ -170,26 +294,23 @@ in
       description = "Generated rc content, keyed by home-relative path. The home-manager backend writes these; a consumer can inspect them without applying anything.";
     };
 
-    fastfetchConfigJSON = lib.mkOption {
-      type = lib.types.str;
-      readOnly = true;
-      description = "cfg.fastfetch.config rendered to JSON text. A backend writes this to config.jsonc; a consumer can inspect it without applying anything.";
-    };
-
-    fastfetchInvocations = lib.mkOption {
+    greetingInvocations = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
       readOnly = true;
-      description = "The fastfetch invocation line for each shell in the catalogue, guarded where the shell's own composition point needs it. A NixOS-backend consumer with no rcFiles/conf.d mechanism of its own reads this directly.";
+      description = ''
+        The greeting command wrapped in each shell's own interactive guard (empty string if
+        `greeting.command` is unset). Every backend applies this identically rather than
+        re-deriving its own guess at the per-shell guard syntax -- see `greetingGuard`'s own
+        comment in this module for the full account of each shell's idiom and how it was tested.
+      '';
     };
   };
 
   config = {
-    nixsh.archPackages = (map (s: catalogue.${s}.arch) enabled)
-      ++ lib.optional cfg.fastfetch.enable "fastfetch";
+    nixsh.archPackages = map (s: catalogue.${s}.arch) enabled;
 
-    nixsh.fastfetchConfigJSON = builtins.toJSON cfg.fastfetch.config;
-
-    nixsh.fastfetchInvocations = lib.genAttrs (lib.attrNames catalogue) fastfetchInvocationFor;
+    nixsh.greetingInvocations = lib.genAttrs (lib.attrNames catalogue)
+      (s: lib.optionalString (cfg.greeting.command != "") (greetingGuard s cfg.greeting.command));
 
     # Alias values are wrapped in SINGLE quotes, per-shell-escaped, never bare double quotes: a
     # value containing its own embedded `"` -- an SSH remote command is the common real case,
@@ -216,7 +337,7 @@ in
         (lib.optionalString (s == "fish") (lib.concatStringsSep "\n"
           (lib.mapAttrsToList (n: v: "set -q ${n}; or set -U ${n} ${escapeFishSingle v}") cfg.fish.universalVariables)))
         cfg.${s}.interactiveInit
-        (lib.optionalString cfg.fastfetch.enable cfg.fastfetchInvocations.${s})
+        cfg.greetingInvocations.${s}
       ])))
       enabled);
   };

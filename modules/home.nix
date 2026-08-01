@@ -75,13 +75,16 @@ in
       xdg.configFile."fish/conf.d/00-nixsh.fish".text = body "fish";
     })
 
-    # fastfetch's own config -- independent of which shells are enabled, since the file is read
-    # by the BINARY, not sourced by a shell. `~/.config/fastfetch/config.jsonc` is fastfetch's own
+    # The greeting's own config file, if it declared one -- independent of which shells are
+    # enabled, since the file is read by whatever BINARY `greeting.command` names, not sourced by
+    # a shell. `~/.config/<path>` is the home-manager half of the XDG-relative shape
+    # `greeting.configFile.path`'s own option doc promises (the NixOS backend writes the same
+    # relative path under `/etc/xdg/` instead) -- for fastfetch specifically this lands on its own
     # first-listed config path (`fastfetch --list-config-paths`), so no `--config` flag is needed
-    # at any of the per-shell call sites this option's value feeds (see modules/nixsh.nix's own
-    # `fastfetchInvocationFor`).
-    (lib.mkIf cfg.fastfetch.enable {
-      xdg.configFile."fastfetch/config.jsonc".text = cfg.fastfetchConfigJSON;
+    # at any of the per-shell call sites `greetingInvocations` feeds, but nixsh does not know or
+    # care that the command happens to be fastfetch here.
+    (lib.mkIf (cfg.greeting.configFile.path != null) {
+      xdg.configFile.${cfg.greeting.configFile.path}.text = cfg.greeting.configFile.text;
     })
 
     # bash/zsh have no conf.d convention, so there are two routes and the host's own choice picks

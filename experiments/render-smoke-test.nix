@@ -6,6 +6,12 @@
 { nixpkgs ? <nixpkgs> }:
 let
   lib = (import nixpkgs { }).lib;
+
+  # Bootstrap eval, no overrides at all -- just to pull out the shipped fastfetch preset as a
+  # plain value, the way a real consumer's `config.nixsh.greeting.presets.fastfetch` read would.
+  presetEval = lib.evalModules { modules = [ ../modules/nixsh.nix ]; };
+  fastfetchPreset = presetEval.config.nixsh.greeting.presets.fastfetch;
+
   eval = lib.evalModules {
     modules = [
       ../modules/nixsh.nix
@@ -25,15 +31,25 @@ let
           fish.aliases."tmux@x" = ''ssh -t x "tmux new -A -s tmux@x"'';
           bash.aliases."tmux@x" = ''ssh -t x "tmux new -A -s tmux@x"'';
 
-          fastfetch = {
-            enable = true;
-            config.modules = [ "title" "os" ];
-          };
+          # The generic mechanism, fed the shipped fastfetch preset wholesale -- exercises both
+          # "a consumer opts in at all" and "the preset is actually usable as documented" in one
+          # declaration, same as a real consumer would write.
+          greeting = fastfetchPreset;
         };
       }
     ];
   };
   rc = eval.config.nixsh.rcFiles;
+
+  # A second, otherwise-identical evaluation with `greeting` left untouched -- proves the
+  # mechanism is OFF by default even though the fastfetch preset exists and is fully computed
+  # (`presets.fastfetch` is a plain readOnly value, not something merely existing turns on).
+  evalNoGreeting = lib.evalModules {
+    modules = [
+      ../modules/nixsh.nix
+      { nixsh.fish.enable = true; }
+    ];
+  };
 in
 {
   shells = builtins.attrNames rc;
@@ -54,14 +70,46 @@ in
     lib.hasInfix "alias tmux@x 'ssh -t x \"tmux new -A -s tmux@x\"'" rc.".config/fish/config.fish";
   bashAliasSurvivesEmbeddedQuotes =
     lib.hasInfix "alias tmux@x='ssh -t x \"tmux new -A -s tmux@x\"'" rc.".bashrc";
-  # fastfetch: guarded for fish (conf.d sources unconditionally), bare for the POSIX shells
-  # (.bashrc/.zshrc are only ever read for an interactive shell in the first place).
-  fastfetchGuardedInFish = lib.hasInfix "status is-interactive; and fastfetch" rc.".config/fish/config.fish";
-  fastfetchBareInBash = lib.hasInfix "\nfastfetch" rc.".bashrc" && !(lib.hasInfix "is-interactive" rc.".bashrc");
-  fastfetchBareInZsh = lib.hasInfix "\nfastfetch" rc.".zshrc" && !(lib.hasInfix "is-interactive" rc.".zshrc");
-  fastfetchConfigJSON = eval.config.nixsh.fastfetchConfigJSON;
-  fastfetchConfigHasModules = lib.hasInfix "\"title\",\"os\"" (lib.replaceStrings [ " " ] [ "" ] eval.config.nixsh.fastfetchConfigJSON);
-  # fastfetch adds itself to the pacman package list too, alongside the shells.
-  fastfetchInArchPackages = lib.elem "fastfetch" eval.config.nixsh.archPackages;
+  # The greeting: each shell must get its OWN idiomatic interactive test, not a copy-pasted one --
+  # this is the whole point of the feature, so it gets one check per shell rather than a shared
+  # "guarded somehow" assertion that could pass on the wrong idiom.
+  greetingFishGuard = lib.hasInfix "if status is-interactive" rc.".config/fish/config.fish"
+    && lib.hasInfix "fastfetch" rc.".config/fish/config.fish";
+  greetingBashGuard = lib.hasInfix "if [[ $- == *i* ]]; then" rc.".bashrc"
+    && lib.hasInfix "fastfetch" rc.".bashrc";
+  greetingZshGuard = lib.hasInfix "if [[ -o interactive ]]; then" rc.".zshrc"
+    && lib.hasInfix "fastfetch" rc.".zshrc";
+  # Nothing else's guard idiom leaked into the wrong shell's file.
+  fishGuardStaysInFish = !(lib.hasInfix "$- ==" rc.".config/fish/config.fish")
+    && !(lib.hasInfix "-o interactive" rc.".config/fish/config.fish");
+  bashGuardStaysInBash = !(lib.hasInfix "is-interactive" rc.".bashrc")
+    && !(lib.hasInfix "-o interactive" rc.".bashrc");
+
+  # The mechanism is generic -- nixsh's OWN rendering never names "fastfetch" anywhere; the string
+  # only appears here because the TEST fed it the fastfetch preset. A consumer naming a different
+  # command would see that command instead, with the identical guard shape.
+  greetingCommandIsWhatConsumerSet = eval.config.nixsh.greeting.command == "fastfetch";
+
+  # The shipped preset itself: usable wholesale (already proved above, `rc` was rendered FROM it),
+  # and its content is fastfetch's own real upstream default -- not invented, not curated down.
+  presetCommandIsFastfetch = fastfetchPreset.command == "fastfetch";
+  presetConfigPathIsXdgRelative = fastfetchPreset.configFile.path == "fastfetch/config.jsonc";
+  presetConfigHasPackagesModule =
+    lib.hasInfix "\"packages\"" fastfetchPreset.configFile.text;
+  presetConfigCarriesNoLogoOverride = !(lib.hasInfix "\"logo\"" fastfetchPreset.configFile.text);
+
+  # OFF BY DEFAULT: the preset existing and being fully computed must not, by itself, turn
+  # anything on. No guard block anywhere, no config file written, in a tree that never touched
+  # `nixsh.greeting` at all.
+  greetingOffByDefaultCommand = evalNoGreeting.config.nixsh.greeting.command == "";
+  greetingOffByDefaultNoFishBlock = !(lib.hasInfix "is-interactive"
+    evalNoGreeting.config.nixsh.rcFiles.".config/fish/config.fish");
+
+  # nixsh itself installs nothing for the greeting -- no auto-added package name of any kind,
+  # unlike the shells (which DO publish `archPackages`). A consumer wires up their own command's
+  # binary, on whichever backend they use.
+  archPackagesHasOnlyShells =
+    eval.config.nixsh.archPackages == [ "bash" "fish" "zsh" ]; # lib.attrNames sorts alphabetically
+
   archPackages = eval.config.nixsh.archPackages;
 }
