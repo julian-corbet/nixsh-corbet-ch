@@ -19,11 +19,19 @@ let
   catalogue = import ../lib/shells.nix { };
   enabled = lib.filter (s: cfg.${s}.enable) (lib.attrNames catalogue);
 
+  # `terminal` folds in here rather than being a second mechanism: it IS an environment variable,
+  # it just has a name worth declaring semantically so other modules can read the choice instead
+  # of matching on a string. Declared last, so it wins over a hand-set environment.variables
+  # TERMINAL -- there is one canonical place to say this, and it is the option, not the raw var.
+  effectiveVariables =
+    cfg.environment.variables
+    // lib.optionalAttrs (cfg.terminal != null) { TERMINAL = cfg.terminal; };
+
   # The shared layer, rendered into each shell's own syntax.
   envFor = shell:
     let c = catalogue.${shell}; in
     lib.concatStringsSep "\n" (
-      (lib.mapAttrsToList c.exportFmt cfg.environment.variables)
+      (lib.mapAttrsToList c.exportFmt effectiveVariables)
       ++ (map c.pathFmt cfg.environment.path)
     );
 
@@ -80,6 +88,25 @@ in
         Recorded rather than enforced: changing a login shell is `chsh` against /etc/passwd, which
         is system state this module has no business rewriting from under a running session. What
         this gives you is the declared intent, and something to check drift against.
+      '';
+    };
+
+    terminal = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "foot";
+      description = ''
+        The terminal emulator, as its executable name. null leaves `$TERMINAL` unset.
+
+        Rendered into `$TERMINAL` for every enabled shell, so everything that spawns "a terminal"
+        agrees without being told separately.
+
+        This is deliberately the DECLARATION, not an installer -- same stance as `loginShell` and
+        the same stance nixsh takes on shells themselves: nix owns the config, the system owns the
+        binary. A desktop or compositor module should READ this to decide what to install and what
+        to bind, rather than carrying its own terminal option. The choice is one fact about a
+        machine; every consumer that restates it is a copy that can drift, and the failure mode is
+        the quiet one -- a keybinding spawning a terminal the system never installed.
       '';
     };
 
