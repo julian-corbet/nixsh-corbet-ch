@@ -56,13 +56,13 @@ in
 
       # generateCompletions defaults to true on `programs.fish.enable`, which is NOT narrow at
       # all: it walks `environment.systemPackages` and builds a completions derivation PER
-      # PACKAGE. Measured live wiring this into a real host with a large ops toolchain
-      # (julian-corbet/infra's corbet-server, ~100 packages): every one of them gained its own
-      # "_fish" completions build, plus `man` (1.9 MiB) and man-db caching pulled in as a further
-      # side effect of THAT (fish.nix's own `documentation.man.cache.enable = mkDefault true`) --
-      # tens of new derivations and several MiB of closure for a feature nobody asked for, on a
-      # backend whose own header promises "narrowly, for the greeting's own sake". Off, so that
-      # promise is actually true rather than merely stated.
+      # PACKAGE. Measured live wiring this into a real host with a large ops toolchain (~100
+      # packages): every one of them gained its own "_fish" completions build, plus `man` (1.9 MiB)
+      # and man-db caching pulled in as a further side effect of THAT (fish.nix's own
+      # `documentation.man.cache.enable = mkDefault true`) -- tens of new derivations and several
+      # MiB of closure for a feature nobody asked for, on a backend whose own header promises
+      # "narrowly, for the greeting's own sake". Off, so that promise is actually true rather than
+      # merely stated.
       programs.fish.generateCompletions = false;
       documentation.man.cache.enable = false;
       documentation.man.cache.generateAtRuntime = false;

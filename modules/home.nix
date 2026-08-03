@@ -28,12 +28,12 @@ let
   # SILENT: no eval error, no output difference, a value that looks live in the source and
   # renders to nothing at all.
   #
-  # Measured live, not hypothetical: julian-corbet/infra's elitebook host carried this exact
-  # combination for five days (2026-07-27 to 2026-08-01) after a migration onto `nixsh.fish` left
-  # the old `programs.fish.*` block sitting there unconverted -- unnoticed until the next
-  # `home-manager switch` on that host finally applied it and quietly dropped a working shell
-  # config (aliases, functions, a per-tty session launcher, and a greeting sourced transitively
-  # through it) with no error at any point.
+  # Measured live, not hypothetical: a real consumer host carried this exact combination for five
+  # days (2026-07-27 to 2026-08-01) after a migration onto `nixsh.fish` left the old
+  # `programs.fish.*` block sitting there unconverted -- unnoticed until the next `home-manager
+  # switch` on that host finally applied it and quietly dropped a working shell config (aliases,
+  # functions, a per-tty session launcher, and a greeting sourced transitively through it) with no
+  # error at any point.
   fishProgramsOrphaned =
     cfg.fish.enable
     && !config.programs.fish.enable

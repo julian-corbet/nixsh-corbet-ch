@@ -13,7 +13,7 @@ let
   fastfetchPreset = presetEval.config.nixsh.greetingPresets.fastfetch;
 
   # The exact shape that caused a real infinite recursion before greetingPresets moved out from
-  # under `greeting` itself (hit live wiring this into julian-corbet/infra's common.nix): a
+  # under `greeting` itself (hit live wiring this into a real consumer's home-manager config): a
   # module-function form that reads `config.nixsh.greetingPresets.fastfetch` to DEFINE
   # `nixsh.greeting` in the same evaluation. Proves the fix, not just that presets exist.
   selfReferentialEval = lib.evalModules {
@@ -39,9 +39,9 @@ let
           fish.universalVariables.fish_greeting = "";
           bash.aliases.ll = "ls -alh";
           # The regression case: an alias value with its OWN embedded double quotes -- an SSH
-          # remote command is the real one that broke (julian-corbet/infra's elitebook host,
-          # 2026-08-01). Naive `alias name="value"` rendering used to mangle this into several
-          # words; both fish's `alias` builtin and POSIX `alias name=value` reject that outright.
+          # remote command is the real one that broke (a real consumer host, 2026-08-01). Naive
+          # `alias name="value"` rendering used to mangle this into several words; both fish's
+          # `alias` builtin and POSIX `alias name=value` reject that outright.
           fish.aliases."tmux@x" = ''ssh -t x "tmux new -A -s tmux@x"'';
           bash.aliases."tmux@x" = ''ssh -t x "tmux new -A -s tmux@x"'';
 

@@ -174,7 +174,7 @@ in
     # assignment read its own target while defining it -- resolving `nixsh.greeting` requires
     # resolving `nixsh.greeting.presets.fastfetch` first, which is only reachable THROUGH
     # `nixsh.greeting` -- a real infinite recursion, not a style objection, hit live wiring this
-    # into julian-corbet/infra's `home/richc/common.nix` (`error: infinite recursion encountered`,
+    # into a real consumer's home-manager entry-point (`error: infinite recursion encountered`,
     # `modules.nix:880`, `nixsh.greeting.presets.fastfetch` named directly in the trace). Moving
     # the preset to a sibling option breaks the cycle: reading `greetingPresets` never has to pass
     # through `greeting` to get there.
