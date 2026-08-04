@@ -52,10 +52,14 @@ let
   # `resolveTool` is the one place `nixpkgsOverride` (lib/tools.nix's own header documents the
   # field) actually gets called: an entry that carries one installs THAT derivation instead of the
   # bare `pkgs.<nixpkgs>` lookup -- visidata, today, trimmed of nixpkgs' own 37 propagated optional
-  # inputs (see that entry's own note). Every other entry has no `nixpkgsOverride`, so `t ?
-  # nixpkgsOverride` is false and this falls through to the original plain lookup, unchanged.
+  # inputs (see that entry's own note) -- but ONLY when this host has opted in via `nixsh.tools.lean
+  # = true;` (see that option's own doc in modules/tools.nix). Default is `lean = false`, so by
+  # default this is exactly the original plain lookup for every entry, visidata included: a host
+  # that sets nothing keeps the full build it has always had. A host with `lean = false` never even
+  # reaches `t ? nixpkgsOverride` -- the `&&` short-circuits -- so an entry can carry the field
+  # without it doing anything until the host asks for it.
   resolveTool = t:
-    if t ? nixpkgsOverride
+    if cfg.tools.lean && (t ? nixpkgsOverride)
     then t.nixpkgsOverride pkgs
     else lib.getAttrFromPath (lib.splitString "." t.nixpkgs) pkgs;
 

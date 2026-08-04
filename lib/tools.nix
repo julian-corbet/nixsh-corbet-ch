@@ -52,10 +52,14 @@
 # `nixpkgsOverride` -- it still decides NixOS-eligibility (`nixpkgs != null`) and is still what
 # `nixsh.tools.nixosPackages`'s own introspection and the stale-mapping warning name; only the
 # FINAL derivation modules/nixos.nix actually force-evaluates and installs into
-# `environment.systemPackages` swaps to `nixpkgsOverride pkgs` when present (see that module's own
-# `resolveTool`), never the plain `pkgs.${nixpkgs}` lookup. Arch is entirely untouched by this
-# field -- the Arch backend never reads `nixpkgsOverride` at all, only `arch`/`aur`. See the
-# `visidata` entry below for the one case that needs it today, and its own note for why.
+# `environment.systemPackages` swaps to `nixpkgsOverride pkgs`, never the plain `pkgs.${nixpkgs}`
+# lookup -- and even then ONLY when the host has opted in with `nixsh.tools.lean = true;`
+# (modules/tools.nix's own option). Off by default: an entry carrying `nixpkgsOverride` changes
+# NOTHING for a host that sets nothing, because leanness is a per-host trade a machine opts INTO,
+# not a capability this catalogue quietly takes away from whichever host actually uses what got
+# trimmed. Arch is entirely untouched by this field regardless of `lean` -- the Arch backend never
+# reads `nixpkgsOverride` at all, only `arch`/`aur`. See the `visidata` entry below for the one
+# case that needs it today, and its own note for why.
 #
 # Every (arch, nixpkgs) pair below was verified against a REAL system, not guessed: `pacman -Si
 # <name>` against a live CachyOS host for the Arch side, and a force-evaluating `nix-instantiate
@@ -253,6 +257,15 @@
       # written for the full requirements.txt install, not a regression test for what remains.
       # Correctness for what this build DOES keep is proven out of band, against the built binary,
       # with real csv/tsv/json/sqlite fixtures (see nixsh's own experiments/ for that run).
+      #
+      # THIS TRIMMED BUILD IS OPT-IN, not the new default -- the operator's own call, not a
+      # correction of the analysis above. Whether xlsx/pdf/hdf5/pyarrow etc. are worth 1 GiB
+      # depends on what the HOST actually does with visidata, and this catalogue has no way to
+      # know that from the package name alone: corbet-server crunches the data those loaders read,
+      # so it stays on the full build (sets nothing, `nixsh.tools.lean` defaults false); the
+      # nixvps-class hosts (e2-micro, vultr) only ever open a csv/tsv/json/sqlite over SSH, so THEY
+      # set `nixsh.tools.lean = true;` and get this derivation instead. See that option's own doc
+      # in modules/tools.nix, and `resolveTool` in modules/nixos.nix for where it is actually read.
       nixpkgsOverride = pkgs: pkgs.visidata.overridePythonAttrs (_old: {
         propagatedBuildInputs = with pkgs.python3Packages; [
           python-dateutil

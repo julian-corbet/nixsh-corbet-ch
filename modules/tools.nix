@@ -52,6 +52,33 @@ in
     record = mkGroup "terminal SESSION recording -- not screen recording, see lib/tools.nix's own header" cat.record;
     misc = mkGroup "everything else" cat.misc;
 
+    lean = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Opt into a catalogue entry's `nixpkgsOverride` (lib/tools.nix's own header documents the
+        field -- today, just visidata, trimmed of nixpkgs' own 37 propagated optional format/API
+        deps) wherever the current selection has one, instead of the plain nixpkgs attribute.
+        Off by default ON PURPOSE: a host that sets nothing keeps the SAME build it has always
+        had -- the full one, every loader present -- because the operator's own call is that
+        leanness is a per-host trade a machine opts INTO, not a capability this catalogue quietly
+        takes away from whichever host happens to actually use the dropped formats (corbet-server,
+        which crunches the data those loaders read, stays on the full build for exactly that
+        reason). A tiny host that never opens an xlsx/parquet/hdf5/pdf in visidata -- the nixvps
+        class today -- sets `nixsh.tools.lean = true;` once and gets the trimmed derivation for
+        every entry that has one, present or future; nothing here re-decides that per entry.
+
+        NixOS-only in EFFECT, not in where it is declared: `resolveTool` in modules/nixos.nix is
+        the one place this is actually read. The Arch backend never installs a package off an
+        entry's `nixpkgs`/`nixpkgsOverride` side at all (pacman's own visidata is already lean --
+        38 MiB, unrelated to this option, see lib/tools.nix's own visidata note) and the
+        home-manager backend does not install `nixsh.tools` selections either (see
+        `shellHooks`'s own option doc below for that boundary) -- so this option is declared once,
+        here, alongside the rest of `nixsh.tools`, and is simply inert on the two backends that
+        have nothing to gate.
+      '';
+    };
+
     selected = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
       readOnly = true;

@@ -74,6 +74,27 @@ let
     "no OTHER entry in the whole catalogue carries a nixpkgsOverride -- it stays the one deliberate exception, not a pattern that crept elsewhere" =
       lib.length (lib.filter (t: t ? nixpkgsOverride) full.selected) == 1;
 
+    # ── tools.lean: the per-host opt-in gate, checked structurally only -- whether it actually
+    # swaps a derivation is modules/nixos.nix's own `resolveTool`, pkgs-based and out of this
+    # file's reach; what belongs HERE is that the gate defaults off and never touches selection. ──
+    "tools.lean defaults to false -- a host that sets nothing keeps the full build it has always had" =
+      (evalWith { }).lean == false;
+
+    "flipping tools.lean changes nothing about WHICH entries are selected -- it is a resolution-time choice, not a second catalogue row" =
+      let
+        fatData = evalWith { data = [ "visidata" ]; };
+        leanData = evalWith { data = [ "visidata" ]; lean = true; };
+        # Compare by `arch` name, not `fatData.selected == leanData.selected` directly: each
+        # `evalWith` call re-imports lib/tools.nix, so visidata's `nixpkgsOverride` is a FRESH
+        # closure allocation each time -- Nix's `==` on two distinct (if source-identical) function
+        # values is always false, which would make list equality here fail for a reason that has
+        # nothing to do with selection. Names are what "which entries" actually means.
+        names = data: map (t: t.arch) data.selected;
+      in
+      names fatData == names leanData
+      && fatData.lean == false
+      && leanData.lean == true;
+
     "unavailableOnNixos surfaces exactly ONE deliberate nixpkgs = null entry -- man-db, and only because NixOS already installs it via documentation.man.enable, so naming the attribute would be a second copy. man-pages and wget name real attributes: nixsh is a base load for EVERY managed host, and documentation.man.enable adds man-db and nothing else, so a null there would have left NixOS hosts with no man-pages at all" =
       lib.sort (a: b: a < b) full.unavailableOnNixos == [ "man-db" ];
 
