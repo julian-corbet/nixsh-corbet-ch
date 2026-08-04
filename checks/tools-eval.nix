@@ -17,7 +17,7 @@ let
   }).config.nixsh.tools;
 
   full = evalWith {
-    core = [ "bat" "eza" "fd" "ripgrep" "fzf" "zoxide" "delta" "dust" "duf" "hexyl" "tokei" "tealdeer" ];
+    core = [ "bat" "eza" "fd" "ripgrep" "fzf" "zoxide" "delta" "dust" "duf" "hexyl" "tokei" "tealdeer" "bc" "pigz" ];
     integrate = [ "starship" "atuin" "direnv" ];
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
     edit = [ "helix" "zellij" "tmux" ];
@@ -28,7 +28,7 @@ let
     media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" ];
     comms = [ "aerc" "gomuks" "newsboat" ];
     record = [ "vhs" "asciinema" ];
-    misc = [ "navi" "serpl" "glow" "slumber" ];
+    misc = [ "navi" "serpl" "glow" "slumber" "bash-completion" ];
   };
 
   coreOnly = evalWith { core = [ "ripgrep" "fzf" ]; };
@@ -45,8 +45,8 @@ let
       let h = (evalWith { }).shellHooks; in
       h.fish == "" && h.bash == "" && h.zsh == "";
 
-    "every group contributes to \`selected\` (12+3+4+3+2+6+5+5+6+3+2+4 = 55)" =
-      lib.length full.selected == 55;
+    "every group contributes to \`selected\` (14+3+4+3+2+6+5+5+6+3+2+5 = 58)" =
+      lib.length full.selected == 58;
 
     "timg is the sole AUR entry across the whole catalogue" =
       full.aurPackages == [ "timg" ];

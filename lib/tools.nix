@@ -78,6 +78,8 @@
     hexyl = { arch = "hexyl"; nixpkgs = "hexyl"; note = "hex viewer with colored byte-class highlighting."; };
     tokei = { arch = "tokei"; nixpkgs = "tokei"; note = "lines-of-code counter, by language, per directory."; };
     tealdeer = { arch = "tealdeer"; nixpkgs = "tealdeer"; note = "tldr client -- community-maintained example-first command summaries, for the `--help` a tool didn't write."; };
+    bc = { arch = "bc"; nixpkgs = "bc"; note = "arbitrary-precision calculator -- the decimal/floating-point escape hatch bash's own `$(( ))` cannot provide at all (bash arithmetic is integer-only)."; };
+    pigz = { arch = "pigz"; nixpkgs = "pigz"; note = "gzip replacement, parallel across every core instead of one -- the same reach-for upgrade `dust`/`duf` above already are for `du`/`df`."; };
   };
 
   # ── Shell integration: need an rc HOOK, not just a binary ──────────────────────────────────
@@ -228,5 +230,26 @@
     serpl = { arch = "serpl"; nixpkgs = "serpl"; note = "search-and-replace TUI across a project tree, VS Code's own find-and-replace panel as a terminal tool."; };
     glow = { arch = "glow"; nixpkgs = "glow"; note = "markdown renderer -- README/docs read as formatted text in the terminal instead of raw source."; };
     slumber = { arch = "slumber"; nixpkgs = "slumber"; note = "REST client TUI -- request collections, environments, chained requests; a terminal-native alternative to a GUI client like Postman/Insomnia."; };
+    bash-completion = {
+      arch = "bash-completion";
+      nixpkgs = "bash-completion";
+      note = ''
+        tab-completion engine for bash. Filed here rather than `integrate` because it needs none
+        of that group's own defining trait -- a per-shell `<tool> init <shell>` incantation run at
+        startup: presence alone is enough, since both backends' own platform already auto-sources
+        it once installed (Arch's stock `/etc/bash.bashrc` has carried the `[[ -r
+        /usr/share/bash-completion/bash_completion ]] && .  ...` guard since before nixsh existed;
+        NixOS's own `programs.bash.completion.enable`, nixos/modules/programs/bash/bash-completion.nix,
+        defaults to true). That NixOS default is worth naming precisely because it looks like a
+        shadowing risk and is not one: it references this exact derivation by absolute store path
+        inside the rendered interactive-shell init script, never through `environment.systemPackages`,
+        so it does not link the package's own bundled completions (or anything else's, via
+        `environment.pathsToLink`'s `/share/bash-completion` entry, also gated on that same option)
+        into `/run/current-system/sw/` at all. Cataloguing it here is therefore the first thing
+        that actually links it on NixOS, not a second copy of one already sitting in
+        `environment.systemPackages` -- and on Arch, where no such default exists at all, this
+        entry is the only thing that installs it.
+      '';
+    };
   };
 }

@@ -17,7 +17,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # entry: the pacman name is `git-delta`, not the bare `delta` this list would otherwise guess —
 # see studies/delta-pacman-name-is-git-delta.md.
 official_names=(
-  bat eza fd ripgrep fzf zoxide git-delta dust duf hexyl tokei tealdeer
+  bat eza fd ripgrep fzf zoxide git-delta dust duf hexyl tokei tealdeer bc pigz
   starship atuin direnv
   yazi broot superfile ncdu
   helix zellij tmux
@@ -28,7 +28,7 @@ official_names=(
   ffmpeg mpv yt-dlp chafa cmus
   aerc gomuks newsboat
   vhs asciinema
-  navi serpl glow slumber
+  navi serpl glow slumber bash-completion
 )
 # Every arch name that IS marked aur = true — pacman -Si cannot see these at all; they are
 # checked against the AUR's own RPC instead.
