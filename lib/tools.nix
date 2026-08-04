@@ -44,6 +44,19 @@
 # is load-bearing: `pacman -S` fails the WHOLE transaction on an AUR name with "target not found",
 # taking every other package in the same converge down with it.
 #
+# `nixpkgsOverride` (optional, a function `pkgs -> derivation`) is the escape hatch for an entry
+# whose bare nixpkgs attribute is the wrong thing to install as-is -- the identical shape
+# `integrate`'s own `shellHook` (`shell -> string`) already establishes for "this needs a function
+# of the consuming backend's own value, not a second static field", reused here rather than
+# invented twice. `nixpkgs` itself stays a plain string even on an entry that also carries
+# `nixpkgsOverride` -- it still decides NixOS-eligibility (`nixpkgs != null`) and is still what
+# `nixsh.tools.nixosPackages`'s own introspection and the stale-mapping warning name; only the
+# FINAL derivation modules/nixos.nix actually force-evaluates and installs into
+# `environment.systemPackages` swaps to `nixpkgsOverride pkgs` when present (see that module's own
+# `resolveTool`), never the plain `pkgs.${nixpkgs}` lookup. Arch is entirely untouched by this
+# field -- the Arch backend never reads `nixpkgsOverride` at all, only `arch`/`aur`. See the
+# `visidata` entry below for the one case that needs it today, and its own note for why.
+#
 # Every (arch, nixpkgs) pair below was verified against a REAL system, not guessed: `pacman -Si
 # <name>` against a live CachyOS host for the Arch side, and a force-evaluating `nix-instantiate
 # --eval` (not `hasAttrByPath` alone -- see experiments/validate-nixpkgs-names.nix's own header
@@ -178,11 +191,11 @@
     curl = {
       arch = "curl";
       nixpkgs = "curl";
-      note = "the terminal's own most basic HTTP(S)/FTP request tool -- present today on both hosts ONLY as a dependency (appstream, cmake, git, flatpak, fisher, exiv2, and more), the identical accidental-survival shape wget's own note below names explicitly. Declared here for the same reason: the catalogue records what a host is MEANT to have, not what happens to be pulled in by whatever else currently depends on it -- true regardless of curl also being a ubiquitous dependency; that is not a reason to leave the two most fundamental network CLI tools uncatalogued. `nixpkgs` is a real, ordinary attribute here -- verified by force-evaluation against the pinned nixpkgs revision (this file's own header) -- unlike man-db/man-pages/wget's deliberate `nixpkgs = null`.";
+      note = "the terminal's own most basic HTTP(S)/FTP request tool -- present today on both hosts ONLY as a dependency (appstream, cmake, git, flatpak, fisher, exiv2, and more), the identical accidental-survival shape wget's own note below names explicitly. Declared here for the same reason: the catalogue records what a host is MEANT to have, not what happens to be pulled in by whatever else currently depends on it -- true regardless of curl also being a ubiquitous dependency; that is not a reason to leave the two most fundamental network CLI tools uncatalogued. `nixpkgs` is a real, ordinary attribute here -- verified by force-evaluation against the pinned nixpkgs revision (this file's own header) -- unlike man-db's deliberate `nixpkgs = null` -- which is the ONLY null in this table, and means one specific thing: NixOS already installs man-db through `documentation.man.enable`, so naming the attribute would install a second copy. It does NOT mean 'Arch only'. nixsh is a base load for every managed host, so man-pages and wget name real attributes and reach NixOS hosts too -- verified: `documentation.man.enable` adds man-db and NOTHING else, so a null there would have left NixOS hosts with no man-pages at all.";
     };
     wget = {
       arch = "wget";
-      nixpkgs = null;
+      nixpkgs = "wget";
       note = "the other fundamental fetch tool alongside curl. `nixpkgs = null` keeps this entry scoped to the two Arch hosts, where the actual gap lives -- on archlxc wget is already a deliberate, standalone install; on the laptop it currently survives only as a dependency of `cloud-image-utils`, and would silently vanish the day that package does, with no distro-level signal anything changed. Declaring it here converts that accidental survival into an intentional one on the hosts where it matters; it makes no claim about a nixpkgs side, unlike man-db above.";
     };
   };
@@ -196,7 +209,60 @@
       note = "YAML/XML/TOML processor with jq's own syntax (kislyuk/yq -- a Python wrapper AROUND jq, not a reimplementation of it). nixpkgs also ships a completely different, unrelated `yq-go` (mikefarah/yq, Go, its own query language) under a name that reads as the obvious modern choice -- it is not this tool, and selecting it here would be silently wrong rather than loudly missing. See studies/yq-nixpkgs-namespace-collision.md.";
     };
     jless = { arch = "jless"; nixpkgs = "jless"; note = "JSON pager -- browse/collapse/search a large document, where jq is for transforming one."; };
-    visidata = { arch = "visidata"; nixpkgs = "visidata"; note = "spreadsheet TUI for CSV/JSON/SQLite/etc -- sort, filter, pivot, plot, without loading a GUI spreadsheet."; };
+    visidata = {
+      arch = "visidata";
+      nixpkgs = "visidata";
+      note = "spreadsheet TUI for CSV/JSON/SQLite/etc -- sort, filter, pivot, plot, without loading a GUI spreadsheet.";
+
+      # nixpkgs' own visidata propagates all 37 OPTIONAL entries of upstream's requirements.txt
+      # (pandas, numpy, pyarrow, matplotlib, seaborn, h5py, psycopg2, boto3, openpyxl/xlrd/xlwt,
+      # pdfminer-six, praw, zulip, requests/urllib3/lxml/beautifulsoup4, and more) -- measured at
+      # 1.26 GiB of a 2.1 GiB whole-selection closure, 60% of the total, for a tool whose everyday
+      # job is opening a CSV in a terminal. Verified against upstream itself (saulpw/visidata, tag
+      # v3.3, the src this file's own pinned nixpkgs revision fetches), not assumed from nixpkgs'
+      # own comments: `requirements.txt` is the "pip install -r requirements.txt" EVERYTHING-list
+      # (every line commented with the one format/API it backs); `setup.py`'s own `install_requires`
+      # -- the actual hard dependency pip enforces -- names only `python-dateutil`. Confirmed safe
+      # to trim, not merely cheap to: every loader in `visidata/loaders/*.py` that touches one of
+      # these imports it LAZILY, inside a function body, via `vd.importExternal(name)`
+      # (visidata/settings.py) -- which catches `ModuleNotFoundError` and fails that one command
+      # with an "install X" message, never the process. That matters because
+      # `visidata/__init__.py`'s own `vd.importSubmodules('visidata.loaders')` DOES eagerly import
+      # every loader MODULE at startup with no try/except of its own -- a bare top-level `import
+      # pandas` anywhere in that tree would turn a dropped package into a startup crash, not a
+      # missing feature. Checked line by line: no loader module has one; the heaviest,
+      # `visidata/loaders/_pandas.py`, imports pandas only inside its own `save_dta()` function
+      # body.
+      #
+      # Kept: `python-dateutil` (setup.py's real `install_requires`, backs the `date` column type),
+      # `pyyaml` (visidata/loaders/yaml.py -- YAML is an everyday structured-data format, not an
+      # API client), `tabulate` + `wcwidth` (~1 MiB combined -- the "tabulate" save format; cheap
+      # enough to keep even though guarded the identical lazy way).
+      #
+      # Dropped -- confirmed by the same per-loader check, none needed to open csv/tsv/json/sqlite:
+      # pandas numpy pyarrow (dta/feather/arrow/parquet), matplotlib seaborn (svg/plot save), h5py
+      # (hdf5), psycopg2 boto3 (postgres/rds), openpyxl xlrd xlwt (xlsx/xls), pdfminer-six (pdf),
+      # praw zulip (reddit/zulip API clients), requests urllib3 lxml beautifulsoup4 (scrape/http
+      # loaders), pyshp pypng fonttools odfpy vobject msgpack brotli zstandard dpkt dnslib sh
+      # psutil faker setuptools importlib-metadata. A future reader who needs xlsx/parquet/hdf5/pdf
+      # back: add that ONE package to `propagatedBuildInputs` below, not the whole list -- naming
+      # the trade here is the point.
+      #
+      # `doCheck = false`: upstream's own checkPhase (`dev/test.sh`) replays visidata's full test
+      # corpus, which exercises the very formats/APIs this override drops -- it is a test suite
+      # written for the full requirements.txt install, not a regression test for what remains.
+      # Correctness for what this build DOES keep is proven out of band, against the built binary,
+      # with real csv/tsv/json/sqlite fixtures (see nixsh's own experiments/ for that run).
+      nixpkgsOverride = pkgs: pkgs.visidata.overridePythonAttrs (_old: {
+        propagatedBuildInputs = with pkgs.python3Packages; [
+          python-dateutil
+          pyyaml
+          tabulate
+          wcwidth
+        ];
+        doCheck = false;
+      });
+    };
     rainfrog = { arch = "rainfrog"; nixpkgs = "rainfrog"; note = "database TUI (Postgres, MySQL/MariaDB, SQLite) -- browse schemas and run queries without a GUI client."; };
   };
 
@@ -286,7 +352,7 @@
     };
     man-pages = {
       arch = "man-pages";
-      nixpkgs = null;
+      nixpkgs = "man-pages";
       note = ''
         the actual man PAGE CONTENT for sections 2/3/4/5/7/8/9 -- syscalls, C library calls, kernel
         interfaces -- that individual packages' own bundled `/share/man` output rarely carries;

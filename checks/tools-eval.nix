@@ -60,8 +60,22 @@ let
     "yq resolves to the plain yq nixpkgs attribute, never the unrelated yq-go" =
       has full.nixosPackages "yq" && !(has full.nixosPackages "yq-go");
 
-    "unavailableOnNixos surfaces exactly the three deliberate nixpkgs = null entries -- man-db (shadowed by documentation.man.enable), man-pages and wget (both scoped Arch-only), nothing else" =
-      lib.sort (a: b: a < b) full.unavailableOnNixos == [ "man-db" "man-pages" "wget" ];
+    # ── visidata's nixpkgsOverride: the closure-lean escape hatch, checked structurally only --
+    # this file stays pkgs-free (see its own header), so it cannot call the override itself; that
+    # half is proven separately, against a real pkgs, out of band (see nixsh's own experiments/). ──
+    "visidata's catalogue entry carries a nixpkgsOverride function -- the NixOS-only mechanism that trims nixpkgs' own 37 propagated optional deps" =
+      let v = lib.findFirst (t: t.arch == "visidata") null full.selected; in
+      v != null && builtins.isFunction (v.nixpkgsOverride or null);
+
+    "visidata's arch/nixpkgs scalars stay plain strings, untouched by carrying an override -- the Arch side reads only those two, never nixpkgsOverride" =
+      let v = lib.findFirst (t: t.arch == "visidata") null full.selected; in
+      v.arch == "visidata" && v.nixpkgs == "visidata";
+
+    "no OTHER entry in the whole catalogue carries a nixpkgsOverride -- it stays the one deliberate exception, not a pattern that crept elsewhere" =
+      lib.length (lib.filter (t: t ? nixpkgsOverride) full.selected) == 1;
+
+    "unavailableOnNixos surfaces exactly ONE deliberate nixpkgs = null entry -- man-db, and only because NixOS already installs it via documentation.man.enable, so naming the attribute would be a second copy. man-pages and wget name real attributes: nixsh is a base load for EVERY managed host, and documentation.man.enable adds man-db and nothing else, so a null there would have left NixOS hosts with no man-pages at all" =
+      lib.sort (a: b: a < b) full.unavailableOnNixos == [ "man-db" ];
 
     "archPackages and aurPackages never share a name -- the pacman transaction footgun this split exists to avoid" =
       lib.intersectLists full.archPackages full.aurPackages == [ ];

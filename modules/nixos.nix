@@ -48,11 +48,22 @@ let
   # platform-neutral "what did this host actually ask for" (archPackages is deliberately Arch's
   # own pacman/AUR split, e.g. timg is withheld from it because it needs an AUR helper on Arch;
   # that distinction means nothing on NixOS, which has no AUR at all).
+  #
+  # `resolveTool` is the one place `nixpkgsOverride` (lib/tools.nix's own header documents the
+  # field) actually gets called: an entry that carries one installs THAT derivation instead of the
+  # bare `pkgs.<nixpkgs>` lookup -- visidata, today, trimmed of nixpkgs' own 37 propagated optional
+  # inputs (see that entry's own note). Every other entry has no `nixpkgsOverride`, so `t ?
+  # nixpkgsOverride` is false and this falls through to the original plain lookup, unchanged.
+  resolveTool = t:
+    if t ? nixpkgsOverride
+    then t.nixpkgsOverride pkgs
+    else lib.getAttrFromPath (lib.splitString "." t.nixpkgs) pkgs;
+
   toolsNamed = lib.filter (t: t.nixpkgs != null) cfg.tools.selected;
   toolsEvaluated = map
     (t: {
       inherit t;
-      try = builtins.tryEval (builtins.seq (lib.getAttrFromPath (lib.splitString "." t.nixpkgs) pkgs) true);
+      try = builtins.tryEval (builtins.seq (resolveTool t) true);
     })
     toolsNamed;
   toolsInstallable = map (r: r.t) (lib.filter (r: r.try.success) toolsEvaluated);
@@ -66,7 +77,7 @@ in
     {
       environment.systemPackages =
         (map (s: pkgs.${catalogue.${s}.nixpkgs}) enabled)
-        ++ (lib.unique (map (t: lib.getAttrFromPath (lib.splitString "." t.nixpkgs) pkgs) toolsInstallable));
+        ++ (lib.unique (map resolveTool toolsInstallable));
       environment.shells = map (s: pkgs.${catalogue.${s}.nixpkgs}) enabled;
 
       warnings =
