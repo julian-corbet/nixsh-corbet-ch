@@ -12,10 +12,31 @@
 #    is right; on a foreign distro it lands ahead of /usr/bin/fish on PATH, so the login shell and
 #    the interactive shell become different builds. This backend therefore never sets
 #    `programs.*.enable` -- the host decides, and on Arch the binary stays pacman's.
+#
+# THE SAME REASONING EXTENDS TO `nixsh.tools` (modules/tools.nix), not just the three shells: this
+# backend renders the selected `integrate` tools' shell HOOKS (`shellHooks`, below) and nothing
+# else about the tool catalogue -- it never adds any of `nixsh.tools.selected` to `home.packages`.
+# Doing so on Arch would be the identical second-binary trap one layer up (a home-manager `bat`
+# ahead of pacman's own on PATH), for tools that have even less reason to need it than a login
+# shell does: nothing else on the box links against `ripgrep` the way login itself execs
+# `/etc/shells`' own shell. Installing is `nixsh.tools.archPackages`/`.aurPackages`
+# (modules/arch.nix, the host's own reconciler) on Arch and `environment.systemPackages`
+# (modules/nixos.nix) on NixOS -- this backend's whole job stays config, on both surfaces alike.
 { config, lib, ... }:
 let
   cfg = config.nixsh;
-  body = shell: cfg.rcFiles.${(import ../lib/shells.nix { }).${shell}.rcPath} or "";
+
+  # `body` now appends `nixsh.tools.shellHooks` (modules/tools.nix) after nixsh's own rendered rc
+  # content -- ONE call site, so every backend write (fish's conf.d drop-in, bash/zsh's initExtra
+  # or owned rc file below) picks up a selected `nixsh.tools.integrate` tool's init hook without a
+  # second edit per branch. See modules/tools.nix's own `shellHooks` option doc for why this
+  # backend specifically -- not modules/nixos.nix -- is the one that renders it.
+  body = shell:
+    let
+      rc = cfg.rcFiles.${(import ../lib/shells.nix { }).${shell}.rcPath} or "";
+      hook = cfg.tools.shellHooks.${shell} or "";
+    in
+    lib.concatStringsSep "\n" (lib.filter (x: x != "") [ rc hook ]);
 
   # THE TRAP: a consumer moves a host onto `nixsh.fish.enable = true`, but leaves earlier
   # `programs.fish.{shellInit,interactiveShellInit,shellAliases,functions}` content in place from
@@ -43,7 +64,7 @@ let
         || config.programs.fish.functions != { });
 in
 {
-  imports = [ ./nixsh.nix ];
+  imports = [ ./nixsh.nix ./tools.nix ];
 
   config = lib.mkMerge [
     # An ASSERTION, not `lib.warn`: the bash/zsh half of this same class of trap (nixsh's own

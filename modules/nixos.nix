@@ -16,7 +16,10 @@
 # it is turned on here, narrowly, gated on `cfg.greeting.command != ""` itself rather than on
 # `cfg.<shell>.enable` alone -- a host that merely wants the shell BINARIES (nixsh's original,
 # unconditional NixOS behaviour, still true for every mkHost/mkNixnas consumer that has not
-# opted into a greeting) sees no change at all.
+# opted into a greeting) sees no change at all. The tool catalogue below (`nixsh.tools.*`) is the
+# identical narrow stance applied to a second surface: it installs the selected tools' BINARIES,
+# nothing about their shell hooks or config files -- see modules/tools.nix's own `shellHooks`
+# option doc for why that half stays home-manager's job on every backend, this one included.
 #
 # THE GREETING'S OWN BINARY IS NOT THIS BACKEND'S JOB, unlike the shells' binaries above: `nixsh`
 # has no opinion on what `greeting.command` names (see modules/nixsh.nix's own header on that
@@ -24,19 +27,52 @@
 # who sets `nixsh.greeting.command = "fastfetch";` on this backend still has to add
 # `pkgs.fastfetch` to their own `environment.systemPackages`, exactly as they already do for
 # `nixsh.terminal` (a declaration, not an installer -- same stance, stated there in full).
+#
+# TOOLS force-evaluate every nixpkgs attribute rather than trusting `hasAttrByPath` alone -- the
+# exact fix nixmedia's own modules/nixos.nix backend carries, forced by the same class of bug:
+# `hasAttrByPath` only proves the ATTRIBUTE exists, not that it is a usable package. nixpkgs
+# converts a renamed package to `<oldName> = throw "renamed to ...";`, which keeps the key present
+# and only breaks when the value is actually forced -- exactly what building
+# `environment.systemPackages` does. `tryEval` turns that from a hard failure of the WHOLE system
+# evaluation into a skip + a warning: lib/tools.nix is a data table, edited far less carefully
+# than code, and a single stale mapping in it should not be able to take a host down.
 { config, lib, pkgs, ... }:
 let
   cfg = config.nixsh;
   catalogue = import ../lib/shells.nix { };
   enabled = lib.filter (s: cfg.${s}.enable) (lib.attrNames catalogue);
   greetingOn = cfg.greeting.command != "";
+
+  # Filter `tools.selected` directly -- NOT `tools.nixosPackages` or `tools.archPackages` -- for
+  # the same reason nixmedia's own nixos.nix backend does: neither of those two lists is the
+  # platform-neutral "what did this host actually ask for" (archPackages is deliberately Arch's
+  # own pacman/AUR split, e.g. timg is withheld from it because it needs an AUR helper on Arch;
+  # that distinction means nothing on NixOS, which has no AUR at all).
+  toolsNamed = lib.filter (t: t.nixpkgs != null) cfg.tools.selected;
+  toolsEvaluated = map
+    (t: {
+      inherit t;
+      try = builtins.tryEval (builtins.seq (lib.getAttrFromPath (lib.splitString "." t.nixpkgs) pkgs) true);
+    })
+    toolsNamed;
+  toolsInstallable = map (r: r.t) (lib.filter (r: r.try.success) toolsEvaluated);
+  toolsStaleMappings = map
+    (r: "nixsh: nixpkgs attribute \"${r.t.nixpkgs}\" (catalogue arch name \"${r.t.arch}\") no longer resolves -- lib/tools.nix's mapping is stale, most likely a nixpkgs rename")
+    (lib.filter (r: !r.try.success) toolsEvaluated);
 in
 {
-  imports = [ ./nixsh.nix ];
+  imports = [ ./nixsh.nix ./tools.nix ];
   config = lib.mkMerge [
     {
-      environment.systemPackages = map (s: pkgs.${catalogue.${s}.nixpkgs}) enabled;
+      environment.systemPackages =
+        (map (s: pkgs.${catalogue.${s}.nixpkgs}) enabled)
+        ++ (lib.unique (map (t: lib.getAttrFromPath (lib.splitString "." t.nixpkgs) pkgs) toolsInstallable));
       environment.shells = map (s: pkgs.${catalogue.${s}.nixpkgs}) enabled;
+
+      warnings =
+        lib.optional (cfg.tools.unavailableOnNixos != [ ])
+          "nixsh: no nixpkgs equivalent for: ${lib.concatStringsSep ", " cfg.tools.unavailableOnNixos}"
+        ++ toolsStaleMappings;
     }
 
     # `/etc/xdg/<path>`, mirroring `~/.config/<path>` on the home-manager backend -- see
