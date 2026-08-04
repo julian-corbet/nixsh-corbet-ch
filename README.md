@@ -76,10 +76,11 @@ decidable rather than argued:
 
 Capability is not the test — mpv ships `--vo=sixel` and OBS cannot run headless at all, and a test
 built on "can it be coaxed into a terminal" would misfile both, in opposite directions. **mpv is
-the one deliberate exception**: its default *is* a graphical window, so by the rule alone it
-belongs to nixmedia (and nixmedia's own catalogue independently carries it too) — it is *also*
-catalogued here, filed by stated use rather than default: the operator runs mpv specifically as
-the terminal video/audio player, with vlc reserved as the graphical fallback. See `lib/tools.nix`'s
+the one deliberate exception**: its default *is* a graphical window, so by the rule alone it would
+belong to nixmedia. It is catalogued here instead, filed by stated use rather than default: the
+operator runs mpv specifically as the terminal video/audio player, with vlc reserved as the
+graphical fallback. Exception, not duplication — nixmedia's catalogue does not carry mpv, so
+there is exactly one place it is declared. See `lib/tools.nix`'s
 header for the full reasoning and further worked examples (cmus, zathura, OBS, asciinema/vhs).
 
 Groups: `core` (bat, eza, fd, ripgrep, fzf, zoxide, delta, dust, duf, hexyl, tokei, tealdeer),

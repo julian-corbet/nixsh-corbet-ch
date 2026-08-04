@@ -25,23 +25,18 @@
 #     as a generic verb it now owns regardless of what is being recorded.
 #
 # THE MPV EXCEPTION. mpv's default IS a graphical window -- by the rule alone it belongs to
-# nixmedia, and nixmedia's own lib/media.nix already catalogues it under exactly that reasoning.
-# It is ALSO catalogued here, filed by stated USE rather than default: the operator runs mpv as
-# the TERMINAL video/audio player (piped into a `--vo` that stays inside the terminal, or audio-
-# only with no video output at all) and reserves vlc, the graphical fallback, for whatever mpv
-# genuinely won't open. Say this plainly rather than let a reader conclude the rule above was
-# applied loosely -- it was not applied to mpv at all; mpv is the one named exception to it, and
-# nixmedia's own copy of the same package is not wrong either. The two catalogues are not required
-# to agree, or to know about each other: each states what belongs to ITS repo's job, and a
-# consumer wanting both a graphical mpv/vlc-adjacent setup AND a terminal one imports both.
+# nixmedia. It is catalogued HERE instead, filed by stated USE rather than default: the operator
+# runs mpv as the TERMINAL video/audio player (piped into a `--vo` that stays inside the terminal,
+# or audio-only with no video output at all) and reserves vlc, the graphical fallback, for whatever
+# mpv genuinely won't open. Say this plainly rather than let a reader conclude the rule above was
+# applied loosely -- it was not applied to mpv at all. mpv is the one named exception to it.
 #
-# THE OVERLAP THIS PRODUCES, stated as a fact about the family's current state rather than a
-# defect of this file: ffmpeg, mpv, yt-dlp, chafa, timg and cmus all have no display mode (or, for
-# mpv, are filed here by exception) and so belong in this catalogue by the rule above -- and
-# nixmedia's own lib/media.nix independently catalogues several of the same names, under reasoning
-# that predates this rule's write-up. This catalogue does not defer to nixmedia's copy, check
-# against it, or attempt to deduplicate across repositories; each repo's catalogue is
-# self-contained and correct on its own terms.
+# ONE PACKAGE, ONE CATALOGUE. nixmedia's lib/media.nix carries vlc and nothing else; ffmpeg, mpv,
+# yt-dlp, chafa, timg and cmus are declared here and only here. That is worth stating because the
+# rule above could be read as permitting two repos to catalogue the same package under their own
+# reasoning -- it does not. Both catalogues feed `environment.systemPackages` on a NixOS host, and
+# two entries resolving to the same attribute is a collision there, not a redundancy. The rule
+# decides which repo owns a package; it does not license a copy in the other.
 #
 # `arch` is the pacman package, `nixpkgs` the attribute (dotted path for a nested one). `aur`
 # (default false) marks a pacman name that lives in the AUR rather than an official repo -- see
