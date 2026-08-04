@@ -107,10 +107,14 @@ in
       type = lib.types.listOf lib.types.str;
       readOnly = true;
       description = ''
-        Selections with no nixpkgs equivalent, surfaced rather than silently dropped. Empty
-        today -- every entry in lib/tools.nix currently has nixpkgs coverage -- kept for the same
-        reason nixmedia keeps the identical mechanism: a uniform shape across the family, ready
-        for a future entry that does not resolve on both platforms.
+        Selections with `nixpkgs = null` in the catalogue, surfaced rather than silently dropped
+        -- for TWO distinct reasons a reader of this list alone cannot tell apart, so don't assume
+        either one from membership here: no nixpkgs equivalent exists at all (the original,
+        exhaustive-until-now reason this option was added, matching nixmedia's own identical
+        mechanism), or the catalogue entry deliberately declines to install one on NixOS even
+        though a real nixpkgs attribute exists -- see that entry's own note in lib/tools.nix (e.g.
+        man-db, shadowed by `documentation.man.enable`'s own default). The warning this feeds
+        (modules/nixos.nix) is worded to hold under both.
       '';
     };
 

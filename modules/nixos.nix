@@ -71,7 +71,7 @@ in
 
       warnings =
         lib.optional (cfg.tools.unavailableOnNixos != [ ])
-          "nixsh: no nixpkgs equivalent for: ${lib.concatStringsSep ", " cfg.tools.unavailableOnNixos}"
+          "nixsh: not installed on NixOS via this catalogue: ${lib.concatStringsSep ", " cfg.tools.unavailableOnNixos} (nixpkgs = null in lib/tools.nix -- either no nixpkgs equivalent exists, or the entry deliberately excludes one; see that entry's own note)"
         ++ toolsStaleMappings;
     }
 

@@ -175,6 +175,16 @@
     gping = { arch = "gping"; nixpkgs = "gping"; note = "ping with a live graph instead of a scrolling log."; };
     sniffnet = { arch = "sniffnet"; nixpkgs = "sniffnet"; note = "packet/traffic monitor with a friendlier summary view than raw tcpdump/wireshark output."; };
     termscp = { arch = "termscp"; nixpkgs = "termscp"; note = "dual-pane file transfer TUI -- SFTP/FTP/SCP/S3/SMB/WebDAV, a terminal-native alternative to a GUI transfer client."; };
+    curl = {
+      arch = "curl";
+      nixpkgs = "curl";
+      note = "the terminal's own most basic HTTP(S)/FTP request tool -- present today on both hosts ONLY as a dependency (appstream, cmake, git, flatpak, fisher, exiv2, and more), the identical accidental-survival shape wget's own note below names explicitly. Declared here for the same reason: the catalogue records what a host is MEANT to have, not what happens to be pulled in by whatever else currently depends on it -- true regardless of curl also being a ubiquitous dependency; that is not a reason to leave the two most fundamental network CLI tools uncatalogued. `nixpkgs` is a real, ordinary attribute here -- verified by force-evaluation against the pinned nixpkgs revision (this file's own header) -- unlike man-db/man-pages/wget's deliberate `nixpkgs = null`.";
+    };
+    wget = {
+      arch = "wget";
+      nixpkgs = null;
+      note = "the other fundamental fetch tool alongside curl. `nixpkgs = null` keeps this entry scoped to the two Arch hosts, where the actual gap lives -- on archlxc wget is already a deliberate, standalone install; on the laptop it currently survives only as a dependency of `cloud-image-utils`, and would silently vanish the day that package does, with no distro-level signal anything changed. Declaring it here converts that accidental survival into an intentional one on the hosts where it matters; it makes no claim about a nixpkgs side, unlike man-db above.";
+    };
   };
 
   # ── Structured data: JSON / YAML / CSV / SQL ────────────────────────────────────────────────
@@ -249,6 +259,45 @@
         that actually links it on NixOS, not a second copy of one already sitting in
         `environment.systemPackages` -- and on Arch, where no such default exists at all, this
         entry is the only thing that installs it.
+      '';
+    };
+    man-db = {
+      arch = "man-db";
+      nixpkgs = null;
+      note = ''
+        the man page reader/formatter itself. `nixpkgs = null` is deliberate, not an unresolved
+        lookup: NixOS already provides man-db by default -- `documentation.man.enable`
+        (nixos/modules/misc/documentation.nix) defaults to true, which defaults
+        `documentation.man.man-db.enable` (nixos/modules/misc/man-db.nix) to true in turn, and that
+        module's own `config = mkIf cfg.enable { environment.systemPackages = [ cfg.package ]; ...
+        }` with `cfg.package` defaulting to `pkgs.man-db` -- confirmed by force-evaluating a
+        minimal `nixos/lib/eval-config.nix` instantiation against the pinned nixpkgs revision (this
+        file's own header): both options resolve `true`, and `man-db` is present in the realized
+        `environment.systemPackages` list, not merely the option default. Declaring a `nixpkgs`
+        attribute here would put a SECOND `pkgs.man-db` into that same list -- the exact collision
+        this file's own header already names for two catalogues sharing a package (ONE PACKAGE, ONE
+        CATALOGUE), just arriving from one catalogue and one NixOS default instead of two
+        catalogues. This is also the opposite shape from `bash-completion` just above: that entry's
+        own NixOS default never reaches `environment.systemPackages` at all, so declaring it there
+        is additive; man-db's default DOES reach it directly, so declaring it there would be
+        duplicative. The Arch hosts have no such built-in option -- the distro package is the only
+        way `man` exists there at all, so this entry is Arch-only by design.
+      '';
+    };
+    man-pages = {
+      arch = "man-pages";
+      nixpkgs = null;
+      note = ''
+        the actual man PAGE CONTENT for sections 2/3/4/5/7/8/9 -- syscalls, C library calls, kernel
+        interfaces -- that individual packages' own bundled `/share/man` output rarely carries;
+        man-db above is only the reader, not the library. `nixpkgs = null` here for a DIFFERENT
+        reason than man-db's, not the same one restated: the identical force-evaluated NixOS
+        instantiation used to verify man-db's claim shows `documentation.man.enable` provisions
+        `man-db` automatically but does NOT add `man-pages` to `environment.systemPackages` at all
+        -- there is no NixOS default this would shadow. `nixpkgs = null` is used anyway because this
+        entry's job is the two Arch hosts specifically, where the gap is real (absent entirely on
+        archlxc, present only via man-db's own transitive pull on the laptop) -- giving corbet-server
+        a first-ever `man-pages` declaration would be a separate decision this entry does not make.
       '';
     };
   };

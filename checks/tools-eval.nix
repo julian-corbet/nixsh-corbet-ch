@@ -23,12 +23,12 @@ let
     edit = [ "helix" "zellij" "tmux" ];
     git = [ "lazygit" "gitui" ];
     system = [ "btop" "bottom" "nvtop" "s-tui" "isd" "lazydocker" ];
-    network = [ "bandwhich" "trippy" "gping" "sniffnet" "termscp" ];
+    network = [ "bandwhich" "trippy" "gping" "sniffnet" "termscp" "curl" "wget" ];
     data = [ "jq" "yq" "jless" "visidata" "rainfrog" ];
     media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" ];
     comms = [ "aerc" "gomuks" "newsboat" ];
     record = [ "vhs" "asciinema" ];
-    misc = [ "navi" "serpl" "glow" "slumber" "bash-completion" ];
+    misc = [ "navi" "serpl" "glow" "slumber" "bash-completion" "man-db" "man-pages" ];
   };
 
   coreOnly = evalWith { core = [ "ripgrep" "fzf" ]; };
@@ -45,8 +45,8 @@ let
       let h = (evalWith { }).shellHooks; in
       h.fish == "" && h.bash == "" && h.zsh == "";
 
-    "every group contributes to \`selected\` (14+3+4+3+2+6+5+5+6+3+2+5 = 58)" =
-      lib.length full.selected == 58;
+    "every group contributes to \`selected\` (14+3+4+3+2+6+7+5+6+3+2+7 = 62)" =
+      lib.length full.selected == 62;
 
     "timg is the sole AUR entry across the whole catalogue" =
       full.aurPackages == [ "timg" ];
@@ -60,8 +60,8 @@ let
     "yq resolves to the plain yq nixpkgs attribute, never the unrelated yq-go" =
       has full.nixosPackages "yq" && !(has full.nixosPackages "yq-go");
 
-    "every catalogued entry has nixpkgs coverage today -- unavailableOnNixos is empty" =
-      full.unavailableOnNixos == [ ];
+    "unavailableOnNixos surfaces exactly the three deliberate nixpkgs = null entries -- man-db (shadowed by documentation.man.enable), man-pages and wget (both scoped Arch-only), nothing else" =
+      lib.sort (a: b: a < b) full.unavailableOnNixos == [ "man-db" "man-pages" "wget" ];
 
     "archPackages and aurPackages never share a name -- the pacman transaction footgun this split exists to avoid" =
       lib.intersectLists full.archPackages full.aurPackages == [ ];

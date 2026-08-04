@@ -23,12 +23,12 @@ official_names=(
   helix zellij tmux
   lazygit gitui
   btop bottom nvtop s-tui isd lazydocker
-  bandwhich trippy gping sniffnet termscp
+  bandwhich trippy gping sniffnet termscp curl wget
   jq yq jless visidata rainfrog
   ffmpeg mpv yt-dlp chafa cmus
   aerc gomuks newsboat
   vhs asciinema
-  navi serpl glow slumber bash-completion
+  navi serpl glow slumber bash-completion man-db man-pages
 )
 # Every arch name that IS marked aur = true — pacman -Si cannot see these at all; they are
 # checked against the AUR's own RPC instead.
