@@ -187,10 +187,15 @@
 
   # ── Network diagnostics ─────────────────────────────────────────────────────────────────────
   network = {
+    bind = { arch = "bind"; nixpkgs = "bind"; note = "DNS operator tools (`dig`, `host`, `nslookup`) -- inspect resolution without running a name server."; };
     bandwhich = { arch = "bandwhich"; nixpkgs = "bandwhich"; note = "live per-process bandwidth usage -- which process, which connection, right now."; };
+    ethtool = { arch = "ethtool"; nixpkgs = "ethtool"; note = "inspect and tune Ethernet link, driver and offload state."; };
     trippy = { arch = "trippy"; nixpkgs = "trippy"; note = "traceroute + ping in one live view, per-hop loss/latency."; };
     gping = { arch = "gping"; nixpkgs = "gping"; note = "ping with a live graph instead of a scrolling log."; };
+    inetutils = { arch = "inetutils"; nixpkgs = "inetutils"; note = "traditional network clients such as `telnet` and `ftp`, retained for protocol-level diagnostics."; };
+    nmap = { arch = "nmap"; nixpkgs = "nmap"; note = "network discovery and port/service inspection."; };
     sniffnet = { arch = "sniffnet"; nixpkgs = "sniffnet"; note = "packet/traffic monitor with a friendlier summary view than raw tcpdump/wireshark output."; };
+    tcpdump = { arch = "tcpdump"; nixpkgs = "tcpdump"; note = "packet capture for protocol-level troubleshooting."; };
     termscp = { arch = "termscp"; nixpkgs = "termscp"; note = "dual-pane file transfer TUI -- SFTP/FTP/SCP/S3/SMB/WebDAV, a terminal-native alternative to a GUI transfer client."; };
     curl = {
       arch = "curl";
