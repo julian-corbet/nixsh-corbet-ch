@@ -161,6 +161,9 @@
   # ── Editors and multiplexers ────────────────────────────────────────────────────────────────
   edit = {
     helix = { arch = "helix"; nixpkgs = "helix"; note = "modal editor with LSP/tree-sitter built in, no plugin step required."; };
+    neovim = { arch = "neovim"; nixpkgs = "neovim"; note = "terminal-first Vim successor with an extensible Lua configuration surface."; };
+    nano = { arch = "nano"; nixpkgs = "nano"; note = "small terminal editor, retained as the dependable low-friction edit path."; };
+    nano-syntax-highlighting = { arch = "nano-syntax-highlighting"; nixpkgs = "nano-syntax-highlighting"; note = "community syntax definitions for Nano; depends on Nano and extends its highlighting coverage."; };
     zellij = { arch = "zellij"; nixpkgs = "zellij"; note = "terminal multiplexer with a discoverable default keybinding layer (on-screen hints) -- tmux's own opposite design choice."; };
     tmux = { arch = "tmux"; nixpkgs = "tmux"; note = "terminal multiplexer -- the older, script/plugin-ecosystem-heavy alternative to zellij; catalogued as a genuine second choice, not superseded by it."; };
   };

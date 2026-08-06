@@ -20,7 +20,7 @@ let
     core = [ "bat" "eza" "fd" "ripgrep" "fzf" "zoxide" "delta" "dust" "duf" "hexyl" "tokei" "tealdeer" "bc" "pigz" ];
     integrate = [ "starship" "atuin" "direnv" ];
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
-    edit = [ "helix" "zellij" "tmux" ];
+    edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
     git = [ "lazygit" "gitui" ];
     system = [ "btop" "bottom" "nvtop" "s-tui" "isd" "lazydocker" ];
     network = [ "bandwhich" "trippy" "gping" "sniffnet" "termscp" "curl" "wget" ];
@@ -45,11 +45,19 @@ let
       let h = (evalWith { }).shellHooks; in
       h.fish == "" && h.bash == "" && h.zsh == "";
 
-    "every group contributes to \`selected\` (14+3+4+3+2+6+7+5+6+3+2+7 = 62)" =
-      lib.length full.selected == 62;
+    "every group contributes to \`selected\` (14+3+4+6+2+6+7+5+6+3+2+7 = 65)" =
+      lib.length full.selected == 65;
 
     "timg is the sole AUR entry across the whole catalogue" =
       full.aurPackages == [ "timg" ];
+
+    "terminal editors resolve to their intended platform names" =
+      has full.archPackages "neovim"
+      && has full.archPackages "nano"
+      && has full.archPackages "nano-syntax-highlighting"
+      && has full.nixosPackages "neovim"
+      && has full.nixosPackages "nano"
+      && has full.nixosPackages "nano-syntax-highlighting";
 
     "delta resolves to the pacman name git-delta, not the bare (wrong) name" =
       has full.archPackages "git-delta" && !(has full.archPackages "delta");
