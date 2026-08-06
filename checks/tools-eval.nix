@@ -21,7 +21,7 @@ let
     integrate = [ "starship" "atuin" "direnv" ];
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
     edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
-    git = [ "lazygit" "gitui" ];
+    git = [ "lazygit" "gitui" "github-cli" ];
     system = [ "btop" "bottom" "nvtop" "s-tui" "isd" "lazydocker" ];
     network = [ "bandwhich" "trippy" "gping" "sniffnet" "termscp" "curl" "wget" ];
     data = [ "jq" "yq" "jless" "visidata" "rainfrog" ];
@@ -45,11 +45,15 @@ let
       let h = (evalWith { }).shellHooks; in
       h.fish == "" && h.bash == "" && h.zsh == "";
 
-    "every group contributes to \`selected\` (14+3+4+6+2+6+7+5+6+3+2+7 = 65)" =
-      lib.length full.selected == 65;
+    "every group contributes to \`selected\` (14+3+4+6+3+6+7+5+6+3+2+7 = 66)" =
+      lib.length full.selected == 66;
 
     "timg is the sole AUR entry across the whole catalogue" =
       full.aurPackages == [ "timg" ];
+
+    "GitHub CLI resolves to its intended platform names" =
+      has full.archPackages "github-cli"
+      && has full.nixosPackages "gh";
 
     "terminal editors resolve to their intended platform names" =
       has full.archPackages "neovim"
