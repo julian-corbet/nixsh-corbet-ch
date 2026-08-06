@@ -391,3 +391,4 @@
     };
   };
 }
+    repgrep = { arch = "repgrep"; nixpkgs = "repgrep"; note = "interactive ripgrep-based search-and-replace for a reviewed replacement workflow."; };
