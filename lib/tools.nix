@@ -173,6 +173,7 @@
     lazygit = { arch = "lazygit"; nixpkgs = "lazygit"; note = "full git TUI -- stage, commit, branch, rebase, stash, all from panels."; };
     gitui = { arch = "gitui"; nixpkgs = "gitui"; note = "faster-starting, narrower-scope git TUI than lazygit -- staging/committing/diffing, not every git subcommand's own workflow."; };
     github-cli = { arch = "github-cli"; nixpkgs = "gh"; note = "GitHub's terminal client for repositories, pull requests, issues, releases and API calls."; };
+    gh-dash = { arch = "gh-dash"; aur = true; nixpkgs = "gh-dash"; note = "interactive GitHub pull-request and issue dashboard; uses the GitHub CLI for authentication and API access."; };
   };
 
   # ── System / process / resource monitors ───────────────────────────────────────────────────

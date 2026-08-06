@@ -21,7 +21,7 @@ let
     integrate = [ "starship" "atuin" "direnv" ];
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
     edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
-    git = [ "lazygit" "gitui" "github-cli" ];
+    git = [ "lazygit" "gitui" "github-cli" "gh-dash" ];
     system = [ "btop" "bottom" "nvtop" "s-tui" "isd" "lazydocker" ];
     network = [ "bandwhich" "trippy" "gping" "sniffnet" "termscp" "curl" "wget" ];
     data = [ "jq" "yq" "jless" "visidata" "rainfrog" ];
@@ -45,15 +45,17 @@ let
       let h = (evalWith { }).shellHooks; in
       h.fish == "" && h.bash == "" && h.zsh == "";
 
-    "every group contributes to \`selected\` (14+3+4+6+3+6+7+5+6+3+2+7 = 66)" =
-      lib.length full.selected == 66;
+    "every group contributes to \`selected\` (14+3+4+6+4+6+7+5+6+3+2+7 = 67)" =
+      lib.length full.selected == 67;
 
-    "timg is the sole AUR entry across the whole catalogue" =
-      full.aurPackages == [ "timg" ];
+    "AUR entries stay isolated from the pacman transaction" =
+      lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "timg" ];
 
-    "GitHub CLI resolves to its intended platform names" =
+    "GitHub tools resolve to their intended platform names" =
       has full.archPackages "github-cli"
-      && has full.nixosPackages "gh";
+      && has full.aurPackages "gh-dash"
+      && has full.nixosPackages "gh"
+      && has full.nixosPackages "gh-dash";
 
     "terminal editors resolve to their intended platform names" =
       has full.archPackages "neovim"

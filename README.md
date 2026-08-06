@@ -85,7 +85,7 @@ header for the full reasoning and further worked examples (cmus, zathura, OBS, a
 
 Groups: `core` (bat, eza, fd, ripgrep, fzf, zoxide, delta, dust, duf, hexyl, tokei, tealdeer),
 `integrate` (starship, atuin, direnv — see below), `nav` (yazi, broot, superfile, ncdu), `edit`
-(helix, neovim, nano, nano-syntax-highlighting, zellij, tmux), `git` (lazygit, gitui, github-cli), `system` (btop, bottom, nvtop, s-tui, isd,
+(helix, neovim, nano, nano-syntax-highlighting, zellij, tmux), `git` (lazygit, gitui, github-cli, gh-dash), `system` (btop, bottom, nvtop, s-tui, isd,
 lazydocker), `network` (bandwhich, trippy, gping, sniffnet, termscp), `data` (jq, yq, jless,
 visidata, rainfrog), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus), `comms` (aerc, gomuks,
 newsboat), `record` (vhs, asciinema — terminal *session* recording, not screen recording; that
