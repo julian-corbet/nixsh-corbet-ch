@@ -87,7 +87,7 @@ Groups: `core` (bat, eza, tree, fd, ripgrep, repgrep, fzf, delta, dust, duf, hex
 cloc, tealdeer, bc, pigz),
 `integrate` (starship, atuin, direnv, zoxide — see below), `nav` (yazi, broot, superfile, ncdu), `edit`
 (helix, neovim, nano, nano-syntax-highlighting, zellij, tmux), `git` (lazygit, gitui, github-cli,
-gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker, lsof), `network` (bandwhich, trippy,
+gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker, lsof, hwinfo), `network` (bandwhich, trippy,
 gping, termscp), `data` (jq, yq, jless,
 visidata, rainfrog, sqlite), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus, exiftool, mediainfo,
 imagemagick), `archive` (p7zip, unzip, zip, unar, cabextract), `integrity` (mp3val, flac, shntool,

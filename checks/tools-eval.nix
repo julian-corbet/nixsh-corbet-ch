@@ -22,7 +22,7 @@ let
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
     edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
     git = [ "lazygit" "gitui" "github-cli" "gh-dash" ];
-    system = [ "btop" "bottom" "s-tui" "isd" "lazydocker" "lsof" ];
+    system = [ "btop" "bottom" "s-tui" "isd" "lazydocker" "lsof" "hwinfo" ];
     network = [ "bandwhich" "trippy" "gping" "termscp" "curl" "wget" ];
     data = [ "jq" "yq" "jless" "visidata" "rainfrog" "sqlite" ];
     media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" "exiftool" "mediainfo" "imagemagick" ];
@@ -52,8 +52,8 @@ let
     # comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
     # term it belongs to, and a label that no longer adds up is itself the signal that one of the
     # two was forgotten.
-    "every group contributes to \`selected\` (16+4+4+6+4+6+6+6+9+5+6+3+2+7 = 84)" =
-      lib.length full.selected == 84;
+    "every group contributes to \`selected\` (16+4+4+6+4+7+6+6+9+5+6+3+2+7 = 85)" =
+      lib.length full.selected == 85;
 
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "shntool" "timg" ];

@@ -258,6 +258,23 @@
     isd = { arch = "isd"; nixpkgs = "isd"; note = "interactive systemd TUI -- units, logs, and control (start/stop/restart) from one screen instead of separate systemctl/journalctl calls."; };
     lazydocker = { arch = "lazydocker"; nixpkgs = "lazydocker"; note = "docker/docker-compose TUI, same family as lazygit -- containers, images, volumes, logs."; };
     lsof = { arch = "lsof"; nixpkgs = "lsof"; note = "lists open files and the processes holding them -- which process still has a deleted file, a mount point or a socket open. The answer to \"target is busy\" on an unmount or a stuck cleanup, which none of the resource monitors above give: they show what a process is CONSUMING, not what it is HOLDING."; };
+    hwinfo = {
+      arch = "hwinfo";
+      nixpkgs = "hwinfo";
+      note = ''
+        openSUSE's hardware probing tool -- surveys the physical machine itself (CPU, disks,
+        network, USB, PCI, memory, BIOS/UEFI) and reports what is actually THERE, which is a
+        different question from everything else in this group: btop/bottom/s-tui/isd/lazydocker
+        read what is running RIGHT NOW (processes, load, containers, units), lsof reads what a
+        process is HOLDING, and hwinfo reads what hardware EXISTS regardless of any of that. A
+        pure CLI with no display mode at all -- this file's own admission test -- the same shape
+        as lsof just above it.
+
+        Ships several binaries under the one package: `hwinfo` itself is the one reached for; also
+        `check_hd`/`convert_hd` (hardware-database maintenance), `getsysinfo` (a plain-text system
+        summary) and `mk_isdnhwdb`.
+      '';
+    };
   };
 
   # ── Network diagnostics ─────────────────────────────────────────────────────────────────────
