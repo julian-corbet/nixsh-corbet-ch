@@ -87,7 +87,7 @@ Groups: `core` (bat, eza, fd, ripgrep, fzf, delta, dust, duf, hexyl, tokei, teal
 `integrate` (starship, atuin, direnv, zoxide — see below), `nav` (yazi, broot, superfile, ncdu), `edit`
 (helix, neovim, nano, nano-syntax-highlighting, zellij, tmux), `git` (lazygit, gitui, github-cli,
 gh-dash), `system` (btop, bottom, nvtop, s-tui, isd, lazydocker), `network` (bandwhich, trippy,
-gping, sniffnet, termscp), `data` (jq, yq, jless,
+gping, termscp), `data` (jq, yq, jless,
 visidata, rainfrog), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus), `comms` (aerc, gomuks,
 newsboat), `record` (vhs, asciinema — terminal *session* recording, not screen recording; that
 stays nixrecord's), `misc` (navi, serpl, glow, slumber).

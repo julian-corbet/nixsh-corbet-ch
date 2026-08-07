@@ -221,6 +221,12 @@
   };
 
   # ── Network diagnostics ─────────────────────────────────────────────────────────────────────
+  # `sniffnet` was dropped from this group (2026-08-07) for failing this catalogue's own admission
+  # test: it is a GUI application, not a TUI -- an Iced app shipping a .desktop file and depending
+  # on fontconfig/freetype/zenity/xdg-desktop-portal. The test is whether the tool has a display
+  # mode at all and whether that is its DEFAULT; if yes it belongs to a display-substrate repo, not
+  # here. It mattered more than a mis-filing usually does because consumers select this catalogue as
+  # ONE list for every host, so a GUI entry here reaches headless servers too.
   network = {
     bind = { arch = "bind"; nixpkgs = "bind"; note = "DNS operator tools (`dig`, `host`, `nslookup`) -- inspect resolution without running a name server."; };
     bandwhich = { arch = "bandwhich"; nixpkgs = "bandwhich"; note = "live per-process bandwidth usage -- which process, which connection, right now."; };
@@ -229,7 +235,6 @@
     gping = { arch = "gping"; nixpkgs = "gping"; note = "ping with a live graph instead of a scrolling log."; };
     inetutils = { arch = "inetutils"; nixpkgs = "inetutils"; note = "traditional network clients such as `telnet` and `ftp`, retained for protocol-level diagnostics."; };
     nmap = { arch = "nmap"; nixpkgs = "nmap"; note = "network discovery and port/service inspection."; };
-    sniffnet = { arch = "sniffnet"; nixpkgs = "sniffnet"; note = "packet/traffic monitor with a friendlier summary view than raw tcpdump/wireshark output."; };
     tcpdump = { arch = "tcpdump"; nixpkgs = "tcpdump"; note = "packet capture for protocol-level troubleshooting."; };
     termscp = {
       arch = "termscp";

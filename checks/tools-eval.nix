@@ -23,7 +23,7 @@ let
     edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
     git = [ "lazygit" "gitui" "github-cli" "gh-dash" ];
     system = [ "btop" "bottom" "nvtop" "s-tui" "isd" "lazydocker" ];
-    network = [ "bandwhich" "trippy" "gping" "sniffnet" "termscp" "curl" "wget" ];
+    network = [ "bandwhich" "trippy" "gping" "termscp" "curl" "wget" ];
     data = [ "jq" "yq" "jless" "visidata" "rainfrog" ];
     media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" ];
     comms = [ "aerc" "gomuks" "newsboat" ];
@@ -45,8 +45,8 @@ let
       let h = (evalWith { }).shellHooks; in
       h.fish == "" && h.bash == "" && h.zsh == "";
 
-    "every group contributes to \`selected\` (14+3+4+6+4+6+7+5+6+3+2+7 = 67)" =
-      lib.length full.selected == 67;
+    "every group contributes to \`selected\` (13+4+4+6+4+6+6+5+6+3+2+7 = 66)" =
+      lib.length full.selected == 66;
 
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "timg" ];
