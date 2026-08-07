@@ -165,6 +165,24 @@
     neovim = { arch = "neovim"; nixpkgs = "neovim"; note = "terminal-first Vim successor with an extensible Lua configuration surface."; };
     nano = { arch = "nano"; nixpkgs = "nano"; note = "small terminal editor, retained as the dependable low-friction edit path."; };
     nano-syntax-highlighting = { arch = "nano-syntax-highlighting"; nixpkgs = "nano-syntax-highlighting"; note = "community syntax definitions for Nano; depends on Nano and extends its highlighting coverage."; };
+    emacs-nox = {
+      arch = "emacs-nox";
+      nixpkgs = "emacs-nox";
+      note = ''
+        Emacs built with NO window-system support at all -- the `-nox` build is terminal-only, so it
+        lands here beside neovim/helix/nano by this file's own placement rule rather than in a
+        display-substrate repo. Not "Emacs coaxed into a terminal": the rule's test is whether a
+        display mode exists and is the DEFAULT, and this build has no display mode to have a
+        default about.
+
+        THE PACKAGE MATTERS, not just the catalogue. Both platforms also ship a plain `emacs` that
+        links a graphical toolkit (GTK), and on Arch `emacs` and `emacs-nox` CONFLICT -- they own
+        the same paths, so pacman refuses to hold both and installing one replaces the other. This
+        entry therefore also documents a REPLACEMENT: nixdev's `editors` group used to catalogue
+        the GTK build as `emacs`, and that entry was removed when this one was added, so the family
+        never offers a host both names to select at once.
+      '';
+    };
     zellij = { arch = "zellij"; nixpkgs = "zellij"; note = "terminal multiplexer with a discoverable default keybinding layer (on-screen hints) -- tmux's own opposite design choice."; };
     tmux = { arch = "tmux"; nixpkgs = "tmux"; note = "terminal multiplexer -- the older, script/plugin-ecosystem-heavy alternative to zellij; catalogued as a genuine second choice, not superseded by it."; };
   };
