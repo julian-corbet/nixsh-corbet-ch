@@ -66,22 +66,34 @@
 # Every (arch, nixpkgs) pair below was verified against a REAL system, not guessed: `pacman -Si
 # <name>` against a live CachyOS host for the Arch side, and a force-evaluating `nix-instantiate
 # --eval` (not `hasAttrByPath` alone -- see experiments/validate-nixpkgs-names.nix's own header
-# for the exact class of stale-alias-to-throw rename that check alone would miss) against the
-# nixpkgs revision infra's own flake.lock had pinned at the time
-# (1d4e0f865d68258aada31e68e6d79c8c463f3b34) for the nixpkgs side -- both sides also cross-checked
-# by `meta.homepage`/pacman `URL` against each other, so a name that resolves on both platforms but
-# points at two DIFFERENT projects (this family's own history: `pkgs.zoom` is a Z-code story
-# player, not zoom-us; `pkgs.ark` is a Jupyter R kernel, not KDE's archive manager; `pkgs.qt6ct` is
-# a throwing alias) gets caught rather than assumed safe because both names merely exist. Two
-# names in this table needed more than a plain 1:1 mapping and are written up properly rather than
-# left as a terse comment -- see studies/delta-pacman-name-is-git-delta.md and
-# studies/yq-nixpkgs-namespace-collision.md.
+# for the exact class of stale-alias-to-throw rename that check alone would miss) against a pinned
+# nixpkgs revision for the nixpkgs side -- both sides also cross-checked by `meta.homepage`/pacman
+# `URL` against each other, so a name that resolves on both platforms but points at two DIFFERENT
+# projects (this family's own history: `pkgs.zoom` is a Z-code story player, not zoom-us;
+# `pkgs.ark` is a Jupyter R kernel, not KDE's archive manager; `pkgs.qt6ct` is a throwing alias)
+# gets caught rather than assumed safe because both names merely exist.
+#
+# A THIRD FAILURE CLASS sits underneath those two, and only a cross-check of what actually lands in
+# `bin/` finds it: two names for the SAME project that expose DIFFERENT COMMANDS. nixpkgs' `_7zz`
+# and Arch's `7zip` are the same 7-Zip at the same version, and one gives `7zz` while the other
+# gives `7z`/`7za`/`7zr` -- so the pair that looks most correct by homepage and version is the one
+# that installs cleanly and leaves the command every caller types missing. Existence, project
+# identity, and command surface are three separate questions; a catalogue spanning two planes has
+# to answer all three.
+#
+# `experiments/verify-package-names.sh` reproduces the whole check -- both platforms, every entry,
+# reading the names out of THIS file rather than a second hand-kept list -- against the revision
+# this repo's own flake.lock pins. Three names in this table needed more than a plain 1:1 mapping
+# and are written up properly rather than left as a terse comment -- see
+# studies/delta-pacman-name-is-git-delta.md, studies/yq-nixpkgs-namespace-collision.md and
+# studies/p7zip-arch-name-is-7zip.md.
 { ... }:
 {
   # ── Core CLI: search, list, view -- the everyday reach-fors ────────────────────────────────
   core = {
     bat = { arch = "bat"; nixpkgs = "bat"; note = "cat with syntax highlighting and git-gutter integration."; };
     eza = { arch = "eza"; nixpkgs = "eza"; note = "ls replacement -- git status, tree view, icons."; };
+    tree = { arch = "tree"; nixpkgs = "tree"; note = "prints a directory hierarchy as an indented tree. Catalogued alongside `eza --tree` rather than superseded by it: this is the small, universally-present, script-friendly printout (`-J` emits JSON, `-L` bounds the depth), where eza's tree mode is one display option of a larger ls replacement."; };
     fd = { arch = "fd"; nixpkgs = "fd"; note = "find replacement -- sane defaults, respects .gitignore."; };
     ripgrep = { arch = "ripgrep"; nixpkgs = "ripgrep"; note = "grep replacement -- what fzf/helix/yazi's own file search shells out to."; };
     repgrep = { arch = "repgrep"; nixpkgs = "repgrep"; note = "interactive ripgrep-based search-and-replace for a reviewed replacement workflow."; };
@@ -94,6 +106,23 @@
     dust = { arch = "dust"; nixpkgs = "dust"; note = "du replacement -- a tree of what is actually using disk, sorted, without piping into sort yourself. nixpkgs' own derivation name is `du-dust` (the attribute path stays `dust`)."; };
     duf = { arch = "duf"; nixpkgs = "duf"; note = "df replacement -- a readable table of mounted filesystems."; };
     hexyl = { arch = "hexyl"; nixpkgs = "hexyl"; note = "hex viewer with colored byte-class highlighting."; };
+    file = {
+      arch = "file";
+      nixpkgs = "file";
+      note = ''
+        identifies what a file actually IS from its magic bytes rather than its extension -- the
+        first question asked of anything arriving from outside.
+
+        IT READS HEADERS ONLY, and that limit is worth stating in the catalogue rather than left
+        to be rediscovered: `file` is routinely mistaken for an integrity check and is not one.
+        Against an archive whose page content had been overwritten in place -- real bytes replaced
+        mid-file, container structure untouched -- it reported the worst-damaged PDFs as "PDF
+        document, version 1.4, 2 page(s)" and passed every one of them, because the header it
+        reads was still perfectly valid. Identification and validation are different questions;
+        the `integrity` group below is where the second one is answered, by tools that actually
+        decode the payload.
+      '';
+    };
     tokei = { arch = "tokei"; nixpkgs = "tokei"; note = "lines-of-code counter, by language, per directory."; };
     tealdeer = { arch = "tealdeer"; nixpkgs = "tealdeer"; note = "tldr client -- community-maintained example-first command summaries, for the `--help` a tool didn't write."; };
     bc = { arch = "bc"; nixpkgs = "bc"; note = "arbitrary-precision calculator -- the decimal/floating-point escape hatch bash's own `$(( ))` cannot provide at all (bash arithmetic is integer-only)."; };
@@ -212,6 +241,7 @@
     s-tui = { arch = "s-tui"; nixpkgs = "s-tui"; note = "stress-test + monitor in one -- frequency/temperature/power under synthetic load, not just idle readout."; };
     isd = { arch = "isd"; nixpkgs = "isd"; note = "interactive systemd TUI -- units, logs, and control (start/stop/restart) from one screen instead of separate systemctl/journalctl calls."; };
     lazydocker = { arch = "lazydocker"; nixpkgs = "lazydocker"; note = "docker/docker-compose TUI, same family as lazygit -- containers, images, volumes, logs."; };
+    lsof = { arch = "lsof"; nixpkgs = "lsof"; note = "lists open files and the processes holding them -- which process still has a deleted file, a mount point or a socket open. The answer to \"target is busy\" on an unmount or a stuck cleanup, which none of the resource monitors above give: they show what a process is CONSUMING, not what it is HOLDING."; };
   };
 
   # ── Network diagnostics ─────────────────────────────────────────────────────────────────────
@@ -338,10 +368,43 @@
       });
     };
     rainfrog = { arch = "rainfrog"; nixpkgs = "rainfrog"; note = "database TUI (Postgres, MySQL/MariaDB, SQLite) -- browse schemas and run queries without a GUI client."; };
+    sqlite = {
+      arch = "sqlite";
+      nixpkgs = "sqlite-interactive";
+      note = ''
+        the `sqlite3` shell itself -- open an application's own database file and read it without
+        the application, which is how half the services on a host are actually debugged. Beside
+        `rainfrog` above deliberately: that is a TUI for browsing a schema, this is the plain
+        REPL a one-line `SELECT` or a `.dump` goes through, and neither substitutes for the other.
+
+        `nixpkgs = "sqlite-interactive"`, NOT the bare `sqlite`, and the difference is not what it
+        looks like. `pkgs.sqlite` does ship the CLI -- its `bin` output carries `bin/sqlite3` and
+        `meta.outputsToInstall` names that output, so it is genuinely installed rather than hidden
+        behind a library-only default -- but that build passes `--disable-readline`
+        (pkgs/development/libraries/sqlite: `interactive ? false`), leaving a prompt with no line
+        editing, no history and no arrow keys. `sqlite-interactive` is the same package with
+        `interactive = true`, which adds readline and ncurses. Arch's own `sqlite` links
+        `libreadline`/`libncursesw` unconditionally, so the bare pair would have quietly declared
+        one capability on Arch and a materially worse one on NixOS -- exactly what this catalogue
+        exists to prevent. Nothing else in the family installs a second `bin/sqlite3` into
+        `environment.systemPackages`, so the two builds never collide there.
+      '';
+    };
   };
 
-  # ── Terminal media: play, view, fetch -- no display server needed (mpv is the exception; see
-  # this file's own header) ──────────────────────────────────────────────────────────────────
+  # ── Terminal media: play, view, fetch, INSPECT -- no display server needed (mpv is the
+  # exception; see this file's own header) ────────────────────────────────────────────────────
+  #
+  # "Inspect" is the fourth verb rather than a fourth group: exiftool/mediainfo/imagemagick answer
+  # what a media file IS and what is inside it, from a shell, over a directory. That is not media
+  # CONSUMPTION -- nixmedia's own scope test is what a person plays, browses, reads or fetches, and
+  # driving `identify` over ten thousand files is none of those -- so those three are not that
+  # repo's, and they are not a display-substrate concern by this file's own placement rule either
+  # (none of the three has a display mode at all; the GUI builds are separately-named packages, see
+  # `mediainfo`'s own note). They are ops tooling for media files, and this is the group that already
+  # owns media files. Note the division of labour with the `integrity` group below: everything here
+  # reports what a file CLAIMS about itself (ffmpeg excepted -- `ffprobe`/`-f null -` genuinely
+  # decode), the integrity group decides whether the payload is still sound.
   media = {
     ffmpeg = { arch = "ffmpeg"; nixpkgs = "ffmpeg"; note = "transcode/inspect -- ffprobe answers what a file actually is, not what its container claims."; };
     mpv = {
@@ -358,6 +421,218 @@
       note = "sixel-/kitty-graphics-protocol-aware terminal image and video viewer -- a genuine second choice alongside chafa, not a duplicate. AUR-only on Arch, an ordinary nixpkgs attribute -- already established by nixmedia's own studies/timg-arch-aur-only.md (github.com/julian-corbet/nixmedia-corbet-ch), which catalogues the same package for the same reason and reached the identical finding; not re-derived here.";
     };
     cmus = { arch = "cmus"; nixpkgs = "cmus"; note = "ncurses music library browser and player -- no GUI dependency, no display mode to have. The clean worked example for this file's own placement rule."; };
+    exiftool = {
+      arch = "perl-image-exiftool";
+      nixpkgs = "exiftool";
+      note = ''
+        reads (and writes) the embedded metadata of essentially every image, video and audio format
+        there is -- EXIF, IPTC, XMP, maker notes, container tags -- from one command, recursively
+        over a tree. The tool reached for when the question is when/where/with-what a file was
+        produced, or when a whole archive's timestamps have to be normalised.
+
+        PACMAN'S NAME IS `perl-image-exiftool`, not `exiftool`: upstream ships it as the Perl
+        distribution Image::ExifTool and Arch packages it under that name, while nixpkgs exposes
+        the same distribution as a top-level `exiftool` attribute. The same shape as `delta`/
+        `git-delta` in `core` -- verified by cross-checking both platforms' own homepage field
+        (exiftool.org on each), not by assuming the bare name exists on both.
+
+        Header-level, like `file` in `core`: it reports what a file's metadata CLAIMS. It does not
+        decode the payload and will pass a file whose actual content has been destroyed.
+      '';
+    };
+    mediainfo = {
+      arch = "mediainfo";
+      nixpkgs = "mediainfo";
+      note = ''
+        reports container, track and codec detail for a media file -- per stream: codec, resolution,
+        frame rate, bit rate, duration, channel layout -- in a form meant to be read or parsed
+        (`--Output=JSON`). Complements ffprobe rather than repeating it: ffprobe is the decoder's
+        own view, mediainfo reads the container's declared structure and is the more legible of the
+        two for a quick "what am I holding".
+
+        THE CLI SPECIFICALLY. Both platforms ship a separate GUI build under its own name
+        (`mediainfo-gui`), which is a windowed application and would fail this file's own placement
+        rule; the bare `mediainfo` name is the command-line one on Arch and in nixpkgs alike.
+      '';
+    };
+    imagemagick = {
+      arch = "imagemagick";
+      nixpkgs = "imagemagick";
+      note = ''
+        `identify`, `convert`/`magick` and `compare` -- image inspection, batch conversion and
+        pixel-level comparison from a shell, over a directory, without a GUI editor.
+
+        `compare` is the reason this is more than a converter: it is what proves two files with
+        identical sizes differ in their actual DECODED PIXELS rather than merely in their bytes.
+        That is the check that confirmed a personal archive's images had been overwritten in place
+        -- same byte count, every header still parsing, `file` and `exiftool` both satisfied, and
+        the rendered image provably different from the known-good copy.
+
+        `identify` is a tolerant reader by design: it will report on a file that a format-specific
+        validator rejects outright. Useful for triage, not a verdict -- see the `integrity` group
+        below for the strict half.
+      '';
+    };
+  };
+
+  # ── Archives: extraction and packing ────────────────────────────────────────────────────────
+  #
+  # The tools reached for to GET AT the contents of arbitrary incoming data -- an external drive, a
+  # download, a decade-old backup written by software nobody runs any more. Kept separate from
+  # `integrity` below even though the two visibly overlap (`zip -T` tests, `lsar -t` tests): the
+  # question here is "can I open it", there it is "is what I already hold still sound". A host that
+  # ingests foreign data wants both; a host that only unpacks releases wants this one alone.
+  #
+  # tar/gzip/bzip2/xz/zstd/cpio are DELIBERATELY ABSENT, and the absence is the content: both
+  # platforms ship them as base system components -- NixOS's `corePackageNames`
+  # (nixos/modules/config/system-path.nix) names bzip2, gnutar, gzip, xz, zstd and cpio outright,
+  # and Arch's `base` meta-package pulls the same set -- so a catalogue entry would put a SECOND
+  # copy on PATH ahead of the one every other program on the box already resolves to. `zip` and
+  # `unzip` are in neither base set on either platform, which is exactly why they ARE catalogued
+  # here; the line is drawn by what the platform already guarantees, not by how fundamental the
+  # format feels.
+  archive = {
+    p7zip = {
+      arch = "7zip";
+      nixpkgs = "p7zip";
+      note = ''
+        the 7-Zip command line: reads and writes .7z, and reads a long tail of other formats
+        besides -- the general opener for whatever an incoming drive turns out to be holding.
+
+        BOTH SIDES OF THIS PAIR ARE TRAPS, in opposite directions, and neither is guessable.
+
+        Pacman's name is `7zip`, NOT `p7zip`. Arch retired its p7zip package in favour of upstream
+        7-Zip's own Linux port, and that package declares `Provides: p7zip`, `Replaces: p7zip`,
+        `Conflicts With: p7zip`. `p7zip` is not in the AUR either, so `aur = true` would not have
+        rescued the bare name -- it does not exist on Arch in any repository, and a pacman
+        transaction naming it fails whole, taking every unrelated package in the same converge with
+        it. Resolving it as a virtual provide would be no better for a reconciler: the declared name
+        would never match the installed one, so every run would try to install it again.
+
+        The nixpkgs attribute stays `p7zip` and NOT `_7zz`, which is the less obvious half. `_7zz`
+        is the official 7-Zip -- by project and even by version the closer match to what Arch now
+        ships -- but it installs its binary as `7zz` and nothing else, while Arch's `7zip` package
+        installs `7z`, `7za` and `7zr`, and `7z` is the name scripts and archive front-ends call by
+        hand. Picking `_7zz` for project purity resolves perfectly and then silently fails to
+        provide the command anyone actually types: the same shape of failure as a throwing alias,
+        arriving through a name that is entirely real. nixpkgs' `p7zip` (the p7zip-project fork)
+        ships `7z`/`7za`/`7zr` -- the identical command surface as the Arch package, which is what
+        a cross-plane catalogue owes its consumer. See studies/p7zip-arch-name-is-7zip.md.
+      '';
+    };
+    unzip = { arch = "unzip"; nixpkgs = "unzip"; note = "extracts zip archives, and `zipinfo` lists one without unpacking it. Also the reader for every zip-container document format (docx/xlsx/pptx/odt), which is often the fastest way to find out what is actually inside one."; };
+    zip = { arch = "zip"; nixpkgs = "zip"; note = "creates zip archives -- the separate Info-ZIP half of the pair above, and the one whose absence is only noticed when something needs to be PACKED for a system that reads nothing else. `zip -T` also tests an existing archive's integrity, which is why the zip-container document formats are checkable at all: a failed central directory means a dead Office document."; };
+    unar = {
+      arch = "unarchiver";
+      nixpkgs = "unar";
+      note = ''
+        `unar` extracts, `lsar` lists (and `lsar -t` tests) -- RAR above all, plus a long tail of
+        legacy formats (StuffIt, ARJ, LZH, ISO, and more) that turn up on old external media and
+        that nothing else here opens.
+
+        DELIBERATELY NOT `unrar`. nixpkgs marks unrar's licence unfreeRedistributable and refuses
+        to evaluate it without an `allowUnfree` carve-out -- a carve-out that applies to the whole
+        host configuration, not to one package, and one not worth taking for a single format when a
+        free reader for that same format is right here. This is a positive choice about which tool
+        gets catalogued, not a gap: the RAR capability is present, it simply arrives through unar.
+
+        Pacman's name is `unarchiver` (the project is MacPaw's XADMaster, shipped as The
+        Unarchiver's command-line tools); nixpkgs' attribute is `unar`, after the binary. Neither
+        platform uses the other's name.
+      '';
+    };
+    cabextract = { arch = "cabextract"; nixpkgs = "cabextract"; note = "extracts Microsoft .cab archives -- installer payloads and driver bundles on Windows-sourced media, which no general-purpose extractor here reads."; };
+  };
+
+  # ── Content integrity: does the payload still decode? ───────────────────────────────────────
+  #
+  # A different question from every other group in this file, and the one most easily assumed
+  # already answered. A checksumming filesystem does not answer it: ZFS guarantees that the bytes
+  # handed to it come back unchanged, never that those bytes were correct when they arrived.
+  # Content-addressed dedup is equally blind -- a corrupt copy and a clean copy of the same file
+  # are simply two different hashes, i.e. "two versions", with nothing to say which is which. And
+  # the identification tools (`file`, `exiftool` in their own groups above) read headers, which
+  # survive the damage: an archive whose real content had been overwritten in place presented
+  # intact headers throughout and passed both. Deciding that content is still sound takes something
+  # that reads the whole payload -- a decoder, a stored manifest, or stored parity.
+  #
+  # WHAT IS HERE AND WHAT IS NOT. Three of these are format-agnostic (`hashdeep`, `rhash`,
+  # `par2cmdline` work on any bytes at all) and three cover audio specifically. The general decode
+  # test for the video/container population is `ffmpeg` in `media` above -- catalogued once, there,
+  # not repeated here. Format-specific decoders beyond audio (PDF engines, raster validators) are
+  # not catalogued in nixsh at all; a host that ingests those formats declares them itself.
+  #
+  # WHERE REDUNDANCY IS DELIBERATE. More than one tool per format is a design choice, not
+  # duplication to tidy away: independent implementations fail differently, and this is measured
+  # rather than assumed -- across a real damaged-PDF population one engine missed two files that a
+  # second engine caught. The audio trio below is the same principle: `flac -t` verifies FLAC's own
+  # embedded CRCs, `mp3val` validates MPEG frames, `shntool len` cross-checks stream length against
+  # what the container declares.
+  integrity = {
+    mp3val = {
+      arch = "mp3val";
+      aur = true;
+      nixpkgs = "mp3val";
+      note = ''
+        validates -- and repairs -- MPEG audio frame by frame. The dedicated tool for the failure
+        mode that made this whole group necessary in the first place: an archived MP3 with roughly
+        128 KB of audio replaced by zeros in the MIDDLE of the file, container and headers
+        untouched.
+
+        THE DIVISION OF LABOUR WITH ffmpeg IS THE POINT, and is why both are catalogued. ffmpeg's
+        decode test (`-f null -`) establishes THAT such a file is broken; mp3val reports WHICH
+        frames are bad and can rewrite the frame index in place, which is the difference between
+        knowing a file is damaged and being able to salvage what is still in it.
+
+        AUR-only on Arch (`aur = true`), an ordinary nixpkgs attribute -- confirmed against
+        pacman's own official repositories and the AUR RPC, not assumed from the name.
+      '';
+    };
+    flac = { arch = "flac"; nixpkgs = "flac"; note = "the FLAC encoder/decoder, catalogued for `flac -t`: FLAC is self-verifying, carrying a per-frame CRC and an MD5 of the fully decoded stream in its own header, so a single command gives a real verdict on the payload with nothing stored on the side. The strongest integrity guarantee available for any format here, and it comes free with the format."; };
+    shntool = {
+      arch = "shntool";
+      aur = true;
+      nixpkgs = "shntool";
+      note = ''
+        `shntool len` reports length, size and format consistency across lossless audio formats in
+        one table -- the cross-check that catches a stream whose actual duration disagrees with what
+        its container declares, which neither a CRC test nor a frame validator is looking for.
+
+        AUR-only on Arch (`aur = true`). nixpkgs' own homepage field points at the Debian package
+        page rather than a live upstream site, which is a fact about the project (upstream's own
+        site is long dormant) rather than a mismatched pair -- the AUR package builds the same
+        shntool 3.0.10.
+      '';
+    };
+    hashdeep = {
+      arch = "hashdeep";
+      aur = true;
+      nixpkgs = "hashdeep";
+      note = ''
+        recursive hashing with a real AUDIT mode: `hashdeep -r -a -k MANIFEST` compares a tree
+        against a stored manifest and reports, in ONE pass, what moved, what is new, what is
+        missing and -- the one that matters -- what has the same path and CHANGED content. That set
+        arithmetic is what `sha256sum -c` plus a hand-written diff is usually reconstructing under
+        pressure; here it is the tool's normal output.
+
+        AUR-only on Arch (`aur = true`), an ordinary nixpkgs attribute.
+      '';
+    };
+    rhash = { arch = "rhash"; nixpkgs = "rhash"; note = "multi-algorithm hashing that also READS and WRITES the digest-file formats found in the wild -- SFV, BSD-style, magnet links -- so an archive that arrived with a .sfv beside it can be verified with the file it came with instead of a hand-rolled comparison. Complements hashdeep: that one audits a tree against its own manifest, this one speaks other people's manifest formats."; };
+    par2cmdline = {
+      arch = "par2cmdline";
+      nixpkgs = "par2cmdline";
+      note = ''
+        `par2 create` / `verify` / `repair` -- Reed-Solomon parity volumes computed over a set of
+        files. THE ONLY TOOL IN THIS GROUP THAT PUTS CONTENT BACK; everything else here can do no
+        more than tell you it is gone.
+
+        Worth generating ahead of time for anything irreplaceable: a few percent of extra size
+        recovers bit-rot and partial overwrites WITHOUT a second full copy, which is what makes it
+        different in kind from a backup rather than a weaker version of one. Detection is not
+        recovery, and by the time detection fires the original is usually already gone.
+      '';
+    };
   };
 
   # ── Terminal communication clients ──────────────────────────────────────────────────────────

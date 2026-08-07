@@ -83,14 +83,27 @@ graphical fallback. Exception, not duplication — nixmedia's catalogue does not
 there is exactly one place it is declared. See `lib/tools.nix`'s
 header for the full reasoning and further worked examples (cmus, zathura, OBS, asciinema/vhs).
 
-Groups: `core` (bat, eza, fd, ripgrep, fzf, delta, dust, duf, hexyl, tokei, tealdeer),
+Groups: `core` (bat, eza, tree, fd, ripgrep, fzf, delta, dust, duf, hexyl, file, tokei, tealdeer),
 `integrate` (starship, atuin, direnv, zoxide — see below), `nav` (yazi, broot, superfile, ncdu), `edit`
 (helix, neovim, nano, nano-syntax-highlighting, zellij, tmux), `git` (lazygit, gitui, github-cli,
-gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker), `network` (bandwhich, trippy,
+gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker, lsof), `network` (bandwhich, trippy,
 gping, termscp), `data` (jq, yq, jless,
-visidata, rainfrog), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus), `comms` (aerc, gomuks,
+visidata, rainfrog, sqlite), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus, exiftool, mediainfo,
+imagemagick), `archive` (p7zip, unzip, zip, unar, cabextract), `integrity` (mp3val, flac, shntool,
+hashdeep, rhash, par2cmdline), `comms` (aerc, gomuks,
 newsboat), `record` (vhs, asciinema — terminal *session* recording, not screen recording; that
 stays nixrecord's), `misc` (navi, serpl, glow, slumber).
+
+Two of those groups answer questions the others don't, and are worth naming separately. `archive`
+is how you *get at* arbitrary incoming data — tar/gzip/bzip2/xz/zstd/cpio are deliberately absent,
+because both platforms ship those in the base system and a second copy on PATH would shadow the one
+everything else resolves to; `zip`/`unzip` are in neither base set, which is why they *are* here.
+`integrity` asks whether a payload still **decodes** — a question a checksumming filesystem does not
+answer (ZFS guarantees the bytes it was handed come back unchanged, never that they were correct on
+arrival), content-addressed dedup does not answer (a corrupt and a clean copy are just "two
+versions"), and `file`/`exiftool` do not answer either, since headers survive the damage. Only a
+decoder, a stored manifest, or stored parity does — and `par2cmdline` is the one tool in the family
+that puts content *back* rather than merely reporting its loss.
 
 ```nix
 {

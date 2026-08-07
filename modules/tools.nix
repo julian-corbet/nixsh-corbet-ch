@@ -32,6 +32,8 @@ let
     (map (k: cat.network.${k}) cfg.network)
     (map (k: cat.data.${k}) cfg.data)
     (map (k: cat.media.${k}) cfg.media)
+    (map (k: cat.archive.${k}) cfg.archive)
+    (map (k: cat.integrity.${k}) cfg.integrity)
     (map (k: cat.comms.${k}) cfg.comms)
     (map (k: cat.record.${k}) cfg.record)
     (map (k: cat.misc.${k}) cfg.misc)
@@ -47,7 +49,9 @@ in
     system = mkGroup "system/process/resource monitors" cat.system;
     network = mkGroup "network diagnostic tools" cat.network;
     data = mkGroup "structured-data (JSON/YAML/CSV/SQL) tools" cat.data;
-    media = mkGroup "terminal-native media tools (play, view, fetch -- see lib/tools.nix's own header for the placement rule, and the mpv exception)" cat.media;
+    media = mkGroup "terminal-native media tools (play, view, fetch, inspect -- see lib/tools.nix's own header for the placement rule, and the mpv exception)" cat.media;
+    archive = mkGroup "archive extraction and packing (tar/gzip/bzip2/xz/zstd/cpio are deliberately absent -- both platforms ship those in the base system; see lib/tools.nix's own group header)" cat.archive;
+    integrity = mkGroup "content-integrity tools -- does the PAYLOAD still decode, a question no filesystem checksum and no header reader answers (see lib/tools.nix's own group header)" cat.integrity;
     comms = mkGroup "terminal communication clients" cat.comms;
     record = mkGroup "terminal SESSION recording -- not screen recording, see lib/tools.nix's own header" cat.record;
     misc = mkGroup "everything else" cat.misc;

@@ -17,15 +17,17 @@ let
   }).config.nixsh.tools;
 
   full = evalWith {
-    core = [ "bat" "eza" "fd" "ripgrep" "fzf" "delta" "dust" "duf" "hexyl" "tokei" "tealdeer" "bc" "pigz" ];
+    core = [ "bat" "eza" "tree" "fd" "ripgrep" "fzf" "delta" "dust" "duf" "hexyl" "file" "tokei" "tealdeer" "bc" "pigz" ];
     integrate = [ "starship" "atuin" "direnv" "zoxide" ];
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
     edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
     git = [ "lazygit" "gitui" "github-cli" "gh-dash" ];
-    system = [ "btop" "bottom" "s-tui" "isd" "lazydocker" ];
+    system = [ "btop" "bottom" "s-tui" "isd" "lazydocker" "lsof" ];
     network = [ "bandwhich" "trippy" "gping" "termscp" "curl" "wget" ];
-    data = [ "jq" "yq" "jless" "visidata" "rainfrog" ];
-    media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" ];
+    data = [ "jq" "yq" "jless" "visidata" "rainfrog" "sqlite" ];
+    media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" "exiftool" "mediainfo" "imagemagick" ];
+    archive = [ "p7zip" "unzip" "zip" "unar" "cabextract" ];
+    integrity = [ "mp3val" "flac" "shntool" "hashdeep" "rhash" "par2cmdline" ];
     comms = [ "aerc" "gomuks" "newsboat" ];
     record = [ "vhs" "asciinema" ];
     misc = [ "navi" "serpl" "glow" "slumber" "bash-completion" "man-db" "man-pages" ];
@@ -45,11 +47,16 @@ let
       let h = (evalWith { }).shellHooks; in
       h.fish == "" && h.bash == "" && h.zsh == "";
 
-    "every group contributes to \`selected\` (13+4+4+6+4+5+6+5+6+3+2+7 = 65)" =
-      lib.length full.selected == 65;
+    # The label spells out the per-group arithmetic in the SAME ORDER the fixture above lists its
+    # groups (core, integrate, nav, edit, git, system, network, data, media, archive, integrity,
+    # comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
+    # term it belongs to, and a label that no longer adds up is itself the signal that one of the
+    # two was forgotten.
+    "every group contributes to \`selected\` (15+4+4+6+4+6+6+6+9+5+6+3+2+7 = 83)" =
+      lib.length full.selected == 83;
 
     "AUR entries stay isolated from the pacman transaction" =
-      lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "timg" ];
+      lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "shntool" "timg" ];
 
     "terminal editors and GitHub tools resolve to their intended platform names" =
       has full.archPackages "neovim"
@@ -68,6 +75,27 @@ let
 
     "yq resolves to the plain yq nixpkgs attribute, never the unrelated yq-go" =
       has full.nixosPackages "yq" && !(has full.nixosPackages "yq-go");
+
+    # ── The archive/integrity groups' own name traps, each verified against a real system before
+    # being catalogued and pinned here so a future edit cannot quietly undo it. ────────────────
+    "7-Zip resolves to the pacman name 7zip and the nixpkgs attribute p7zip -- never the bare p7zip on Arch (a name no Arch repository carries at all, so a pacman transaction naming it fails whole) and never _7zz on nixpkgs (real, but ships its binary as 7zz only, where every caller types 7z)" =
+      has full.archPackages "7zip"
+      && !(has full.archPackages "p7zip")
+      && has full.nixosPackages "p7zip"
+      && !(has full.nixosPackages "_7zz");
+
+    "unar and exiftool carry their own pacman names, which match neither the binary nor the nixpkgs attribute" =
+      has full.archPackages "unarchiver"
+      && !(has full.archPackages "unar")
+      && has full.archPackages "perl-image-exiftool"
+      && !(has full.archPackages "exiftool")
+      && has full.nixosPackages "unar"
+      && has full.nixosPackages "exiftool";
+
+    "sqlite names the readline build on nixpkgs -- the bare attribute ships its CLI with --disable-readline, where Arch's own package links readline unconditionally" =
+      has full.archPackages "sqlite"
+      && has full.nixosPackages "sqlite-interactive"
+      && !(has full.nixosPackages "sqlite");
 
     # ── visidata's nixpkgsOverride: the closure-lean escape hatch, checked structurally only --
     # this file stays pkgs-free (see its own header), so it cannot call the override itself; that

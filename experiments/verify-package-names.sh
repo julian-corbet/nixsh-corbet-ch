@@ -1,40 +1,41 @@
 #!/usr/bin/env bash
 # Reproduces the verification every (arch, nixpkgs) pair in lib/tools.nix was checked against
-# before being committed: `pacman -Si` (and, for the one AUR-only name, the AUR RPC) for the Arch
+# before being committed: `pacman -Si` (and, for the AUR-only names, the AUR RPC) for the Arch
 # side; a force-evaluating `nix-instantiate --eval` for the nixpkgs side. This is the manual,
 # human-readable half — experiments/validate-nixpkgs-names.nix is the machine-checkable half for
 # the nixpkgs side alone (wire it into CI; this script is for re-running the FULL verification by
 # hand after touching lib/tools.nix, the way it was actually done to build this catalogue in the
 # first place, against a live CachyOS host's pacman and a pinned nixpkgs rev).
 #
+# BOTH NAME LISTS ARE READ OUT OF lib/tools.nix, never hand-maintained here. They used to be
+# hardcoded and went stale exactly the way a duplicated list does: entries added to the catalogue
+# were never checked by this script, and entries REMOVED from it were still "verified" here long
+# after they stopped existing. The catalogue is the one place a tool is named.
+#
 # Usage: ./experiments/verify-package-names.sh [nixpkgs-rev]
-#   Defaults to the rev infra's own flake.lock had pinned when this catalogue was built.
+#   Defaults to the revision this repo's own flake.lock pins — the same one `nix flake check`
+#   evaluates checks/tools-eval.nix against.
 set -euo pipefail
-rev="${1:-1d4e0f865d68258aada31e68e6d79c8c463f3b34}"
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+rev="${1:-$(sed -n 's/.*"rev": "\([0-9a-f]\{40\}\)".*/\1/p' flake.lock | head -1)}"
 
-# Every arch name in lib/tools.nix that is NOT marked aur = true. Note `delta`'s own catalogue
-# entry: the pacman name is `git-delta`, not the bare `delta` this list would otherwise guess —
-# see studies/delta-pacman-name-is-git-delta.md.
-official_names=(
-  bat eza fd ripgrep fzf zoxide git-delta dust duf hexyl tokei tealdeer bc pigz
-  starship atuin direnv
-  yazi broot superfile ncdu
-  helix zellij tmux
-  lazygit gitui
-  btop bottom nvtop s-tui isd lazydocker
-  bandwhich trippy gping sniffnet termscp curl wget
-  jq yq jless visidata rainfrog
-  ffmpeg mpv yt-dlp chafa cmus
-  aerc gomuks newsboat
-  vhs asciinema
-  navi serpl glow slumber bash-completion man-db man-pages
-)
-# Every arch name that IS marked aur = true — pacman -Si cannot see these at all; they are
-# checked against the AUR's own RPC instead.
-aur_names=(timg)
+# Every `arch` name in lib/tools.nix, split by the `aur` flag. Pure builtins on purpose: this must
+# work on a host with no <nixpkgs> channel at all, since it is only reading an attrset of strings.
+catalogue_arch_names() {
+  local aur="$1"
+  nix-instantiate --eval --strict --expr "
+    let
+      cat = import ./lib/tools.nix { };
+      entries = builtins.concatLists (map builtins.attrValues (builtins.attrValues cat));
+      want = builtins.filter (t: (t.aur or false) == ${aur}) entries;
+    in builtins.concatStringsSep \" \" (map (t: t.arch) want)
+  " | sed 's/^"//; s/"$//'
+}
 
-echo "== Arch official repos (pacman -Si) =="
+read -r -a official_names <<<"$(catalogue_arch_names false)"
+read -r -a aur_names <<<"$(catalogue_arch_names true)"
+
+echo "== Arch official repos (pacman -Si) — ${#official_names[@]} names =="
 official_status=0
 for pkg in "${official_names[@]}"; do
   if pacman -Si "$pkg" >/dev/null 2>&1; then
@@ -46,7 +47,7 @@ for pkg in "${official_names[@]}"; do
 done
 
 echo
-echo "== AUR-only names (aur.archlinux.org RPC v5 -- pacman -Si never sees these) =="
+echo "== AUR-only names (aur.archlinux.org RPC v5 -- pacman -Si never sees these) — ${#aur_names[@]} names =="
 aur_status=0
 for pkg in "${aur_names[@]}"; do
   if curl -sf "https://aur.archlinux.org/rpc/v5/info?arg[]=$pkg" | grep -q '"resultcount":1'; then
