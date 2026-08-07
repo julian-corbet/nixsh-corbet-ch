@@ -87,7 +87,6 @@
     ripgrep = { arch = "ripgrep"; nixpkgs = "ripgrep"; note = "grep replacement -- what fzf/helix/yazi's own file search shells out to."; };
     repgrep = { arch = "repgrep"; nixpkgs = "repgrep"; note = "interactive ripgrep-based search-and-replace for a reviewed replacement workflow."; };
     fzf = { arch = "fzf"; nixpkgs = "fzf"; note = "fuzzy finder -- a library other tools embed (zoxide's interactive mode, shell history search) as much as a standalone command."; };
-    zoxide = { arch = "zoxide"; nixpkgs = "zoxide"; note = "cd replacement that ranks directories by frecency (frequency + recency); needs a shell hook to work at all, see `integrate` below for the shape that pattern takes when a tool NEEDS one -- zoxide's own hook is simple enough (`zoxide init <shell>`) it is left as a plain `interactiveInit` line for a consumer to write rather than a second generated mechanism for one more tool."; };
     delta = {
       arch = "git-delta";
       nixpkgs = "delta";
@@ -150,6 +149,15 @@
         if shell == "fish"
         then "direnv hook fish | source"
         else ''eval "$(direnv hook ${shell})"'';
+    };
+    zoxide = {
+      arch = "zoxide";
+      nixpkgs = "zoxide";
+      note = "cd replacement ranking directories by frecency (frequency + recency). Belongs to THIS group, not `core`: without its hook there is no `z` at all, which is this group's defining trait -- the binary alone provides nothing a person types. It was previously catalogued in `core` with a note deferring the hook to the consumer as 'a plain interactiveInit line'; no consumer ever wrote one, so the package installed and the command did not exist. A tool that cannot work without a hook must ship the hook.";
+      shellHook = shell:
+        if shell == "fish"
+        then "zoxide init fish | source"
+        else ''eval "$(zoxide init ${shell})"'';
     };
   };
 

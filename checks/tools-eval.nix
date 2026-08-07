@@ -17,8 +17,8 @@ let
   }).config.nixsh.tools;
 
   full = evalWith {
-    core = [ "bat" "eza" "fd" "ripgrep" "fzf" "zoxide" "delta" "dust" "duf" "hexyl" "tokei" "tealdeer" "bc" "pigz" ];
-    integrate = [ "starship" "atuin" "direnv" ];
+    core = [ "bat" "eza" "fd" "ripgrep" "fzf" "delta" "dust" "duf" "hexyl" "tokei" "tealdeer" "bc" "pigz" ];
+    integrate = [ "starship" "atuin" "direnv" "zoxide" ];
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
     edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
     git = [ "lazygit" "gitui" "github-cli" "gh-dash" ];
@@ -51,19 +51,17 @@ let
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "timg" ];
 
-    "GitHub tools resolve to their intended platform names" =
-      has full.archPackages "github-cli"
-      && has full.aurPackages "gh-dash"
-      && has full.nixosPackages "gh"
-      && has full.nixosPackages "gh-dash";
-
-    "terminal editors resolve to their intended platform names" =
+    "terminal editors and GitHub tools resolve to their intended platform names" =
       has full.archPackages "neovim"
       && has full.archPackages "nano"
       && has full.archPackages "nano-syntax-highlighting"
+      && has full.archPackages "github-cli"
+      && has full.aurPackages "gh-dash"
       && has full.nixosPackages "neovim"
       && has full.nixosPackages "nano"
-      && has full.nixosPackages "nano-syntax-highlighting";
+      && has full.nixosPackages "nano-syntax-highlighting"
+      && has full.nixosPackages "gh"
+      && has full.nixosPackages "gh-dash";
 
     "delta resolves to the pacman name git-delta, not the bare (wrong) name" =
       has full.archPackages "git-delta" && !(has full.archPackages "delta");
