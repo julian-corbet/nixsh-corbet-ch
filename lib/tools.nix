@@ -72,10 +72,9 @@
 # by `meta.homepage`/pacman `URL` against each other, so a name that resolves on both platforms but
 # points at two DIFFERENT projects (this family's own history: `pkgs.zoom` is a Z-code story
 # player, not zoom-us; `pkgs.ark` is a Jupyter R kernel, not KDE's archive manager; `pkgs.qt6ct` is
-# a throwing alias) gets caught rather than assumed safe because both names merely exist. Three
+# a throwing alias) gets caught rather than assumed safe because both names merely exist. Two
 # names in this table needed more than a plain 1:1 mapping and are written up properly rather than
-# left as a terse comment -- see studies/delta-pacman-name-is-git-delta.md,
-# studies/nvtop-nixpkgs-attribute-is-nvtopPackages-full.md and
+# left as a terse comment -- see studies/delta-pacman-name-is-git-delta.md and
 # studies/yq-nixpkgs-namespace-collision.md.
 { ... }:
 {
@@ -210,11 +209,6 @@
   system = {
     btop = { arch = "btop"; nixpkgs = "btop"; note = "resource monitor -- CPU/mem/disk/net/proc, C++ port of bpytop."; };
     bottom = { arch = "bottom"; nixpkgs = "bottom"; note = "resource monitor, graph-first layout -- a second choice alongside btop, not a replacement for it."; };
-    nvtop = {
-      arch = "nvtop";
-      nixpkgs = "nvtopPackages.full";
-      note = "GPU process monitor (AMD/Intel/NVIDIA) -- btop's own blind spot. nixpkgs has no top-level `nvtop` attribute at all; it lives under `nvtopPackages.full`. See studies/nvtop-nixpkgs-attribute-is-nvtopPackages-full.md.";
-    };
     s-tui = { arch = "s-tui"; nixpkgs = "s-tui"; note = "stress-test + monitor in one -- frequency/temperature/power under synthetic load, not just idle readout."; };
     isd = { arch = "isd"; nixpkgs = "isd"; note = "interactive systemd TUI -- units, logs, and control (start/stop/restart) from one screen instead of separate systemctl/journalctl calls."; };
     lazydocker = { arch = "lazydocker"; nixpkgs = "lazydocker"; note = "docker/docker-compose TUI, same family as lazygit -- containers, images, volumes, logs."; };

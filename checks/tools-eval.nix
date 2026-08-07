@@ -22,7 +22,7 @@ let
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
     edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
     git = [ "lazygit" "gitui" "github-cli" "gh-dash" ];
-    system = [ "btop" "bottom" "nvtop" "s-tui" "isd" "lazydocker" ];
+    system = [ "btop" "bottom" "s-tui" "isd" "lazydocker" ];
     network = [ "bandwhich" "trippy" "gping" "termscp" "curl" "wget" ];
     data = [ "jq" "yq" "jless" "visidata" "rainfrog" ];
     media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" ];
@@ -45,8 +45,8 @@ let
       let h = (evalWith { }).shellHooks; in
       h.fish == "" && h.bash == "" && h.zsh == "";
 
-    "every group contributes to \`selected\` (13+4+4+6+4+6+6+5+6+3+2+7 = 66)" =
-      lib.length full.selected == 66;
+    "every group contributes to \`selected\` (13+4+4+6+4+5+6+5+6+3+2+7 = 65)" =
+      lib.length full.selected == 65;
 
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "timg" ];
@@ -65,9 +65,6 @@ let
 
     "delta resolves to the pacman name git-delta, not the bare (wrong) name" =
       has full.archPackages "git-delta" && !(has full.archPackages "delta");
-
-    "nvtop resolves to the nested nixpkgs attribute nvtopPackages.full" =
-      has full.nixosPackages "nvtopPackages.full" && !(has full.nixosPackages "nvtop");
 
     "yq resolves to the plain yq nixpkgs attribute, never the unrelated yq-go" =
       has full.nixosPackages "yq" && !(has full.nixosPackages "yq-go");
