@@ -20,9 +20,11 @@
 #     "terminal-native"; zathura never runs inside one.
 #   - OBS's default AND only mode is a window; it cannot run headless -> nixrecord, never here.
 #   - asciinema and vhs RECORD a terminal -- no display server involved on either end, capture or
-#     playback -- so both are here, not nixrecord. This is also what keeps nixrecord single-
-#     purpose (screen/window/region capture via OBS, nothing else) rather than accreting "record"
-#     as a generic verb it now owns regardless of what is being recorded.
+#     playback -- so both are HERE, not nixrecord. nixrecord captures the REAL world (camera,
+#     microphone, capture card), never a digital interface; capturing a digital interface is owned
+#     by whichever repo already owns that interface. A terminal's owner is this repo -- every host
+#     has a console, so console recording (asciinema, vhs) is nixsh's, positively, the same way
+#     desktop/game capture is nixremote's/nixdesktop's/nixscroll's rather than nixrecord's.
 #
 # THE MPV EXCEPTION. mpv's default IS a graphical window -- by the rule alone it belongs to
 # nixmedia. It is catalogued HERE instead, filed by stated USE rather than default: the operator
@@ -335,8 +337,9 @@
     newsboat = { arch = "newsboat"; nixpkgs = "newsboat"; note = "RSS/Atom reader."; };
   };
 
-  # ── Terminal session recording -- records a TERMINAL, not the screen. Deliberately not
-  # nixrecord's: see this file's own header for why that stays OBS-only and single-purpose. ────
+  # ── Terminal session recording -- records a TERMINAL, a digital interface this repo owns.
+  # Deliberately not nixrecord's: nixrecord captures the real world (camera, microphone, capture
+  # card), never a digital interface -- see this file's own header for the full rule. ──────────
   record = {
     vhs = { arch = "vhs"; nixpkgs = "vhs"; note = "scripted terminal recording -- a `.tape` file describing keystrokes and timing renders to a GIF/MP4/WebM reproducibly, the way a Dockerfile reproduces an image."; };
     asciinema = { arch = "asciinema"; nixpkgs = "asciinema"; note = "live terminal session recording -- captures the actual session as it happens, where vhs scripts one ahead of time."; };
