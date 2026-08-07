@@ -123,18 +123,21 @@
         decode the payload.
       '';
     };
-    tokei = { arch = "tokei"; nixpkgs = "tokei"; note = "lines-of-code counter, by language, per directory -- the fast, single-tree snapshot. See cloc just below for the two-tree/two-commit question this one cannot answer."; };
+    tokei = { arch = "tokei"; nixpkgs = "tokei"; note = "lines-of-code counter, by language, per directory -- the fast Rust implementation. Both it and cloc (below) are catalogued deliberately, not as an accidental duplicate; see cloc's own note for the distinction."; };
     cloc = {
       arch = "cloc";
       nixpkgs = "cloc";
       note = ''
-        the older, Perl-based lines-of-code counter, catalogued beside tokei rather than
-        superseded by it: `--diff` / `--count-and-diff` / `--git` compare two trees, or two git
-        commits/tags, and report added/removed/modified/same lines of CODE and of COMMENTS
-        separately. Checked, not assumed -- tokei's own `--help` carries no diff-shaped option at
-        all, so "how much did this actually change" has no answer there. For a plain single-tree
-        snapshot, tokei stays the reach-for; cloc is the one that answers the two-point-in-time
-        question.
+        the older, Perl-based lines-of-code counter -- broad per-language coverage and per-file
+        blank/comment/code accounting, plus `--diff`/`--count-and-diff`/`--git` to compare two
+        trees or two commits, which tokei (above) does not provide. Both are catalogued on
+        purpose: which one an operator reaches for is a genuine preference, not something this
+        catalogue decides for them.
+
+        `Architecture: any` on Arch -- a pure Perl script, nothing compiled -- so it does not
+        appear in any of the cachyos-v3/v4 optimized repos; `extra` (the official Arch repo,
+        confirmed present there too) is the only and correct answer, not a fallback from a
+        preferred CachyOS one.
       '';
     };
     tealdeer = { arch = "tealdeer"; nixpkgs = "tealdeer"; note = "tldr client -- community-maintained example-first command summaries, for the `--help` a tool didn't write."; };
