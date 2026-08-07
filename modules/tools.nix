@@ -48,7 +48,7 @@ in
     git = mkGroup "git TUIs" cat.git;
     system = mkGroup "system/process/resource monitors" cat.system;
     network = mkGroup "network diagnostic tools" cat.network;
-    data = mkGroup "structured-data (JSON/YAML/CSV/SQL) tools" cat.data;
+    data = mkGroup "structured-data (JSON/YAML/CSV) tools -- database clients are nixdb's, not this shelf's" cat.data;
     media = mkGroup "terminal-native media tools (play, view, fetch, inspect -- see lib/tools.nix's own header for the placement rule, and the mpv exception)" cat.media;
     archive = mkGroup "archive extraction and packing (tar/gzip/bzip2/xz/zstd/cpio are deliberately absent -- both platforms ship those in the base system; see lib/tools.nix's own group header)" cat.archive;
     integrity = mkGroup "content-integrity tools -- does the PAYLOAD still decode, a question no filesystem checksum and no header reader answers (see lib/tools.nix's own group header)" cat.integrity;

@@ -328,7 +328,18 @@
     };
   };
 
-  # ── Structured data: JSON / YAML / CSV / SQL ────────────────────────────────────────────────
+  # ── Structured data: JSON / YAML / CSV ──────────────────────────────────────────────────────
+  #
+  # NO DATABASE TOOL BELONGS HERE, and the boundary is by what a tool addresses rather than by what
+  # it can be pointed at. Wire-protocol shells, multi-engine command lines and the inspectors that
+  # open a database file on disk are all catalogued by nixdb
+  # (github:julian-corbet/nixdb-corbet-ch), the repository whose subject is databases. "Runs in a
+  # terminal" and "reads structured data" are both true of them and neither is the test.
+  #
+  # `visidata` below is the near miss, and it stays: it opens two dozen file formats and SQLite is
+  # one of them, so reading a database is something it CAN do rather than what it is FOR. A tool
+  # whose entire purpose is a database goes to nixdb; a spreadsheet TUI that happens to have a
+  # loader does not.
   data = {
     jq = { arch = "jq"; nixpkgs = "jq"; note = "JSON query/transform -- the tool half the rest of this family's own `nix eval --json` output gets piped through."; };
     yq = {
@@ -399,29 +410,6 @@
         ];
         doCheck = false;
       });
-    };
-    rainfrog = { arch = "rainfrog"; nixpkgs = "rainfrog"; note = "database TUI (Postgres, MySQL/MariaDB, SQLite) -- browse schemas and run queries without a GUI client."; };
-    sqlite = {
-      arch = "sqlite";
-      nixpkgs = "sqlite-interactive";
-      note = ''
-        the `sqlite3` shell itself -- open an application's own database file and read it without
-        the application, which is how half the services on a host are actually debugged. Beside
-        `rainfrog` above deliberately: that is a TUI for browsing a schema, this is the plain
-        REPL a one-line `SELECT` or a `.dump` goes through, and neither substitutes for the other.
-
-        `nixpkgs = "sqlite-interactive"`, NOT the bare `sqlite`, and the difference is not what it
-        looks like. `pkgs.sqlite` does ship the CLI -- its `bin` output carries `bin/sqlite3` and
-        `meta.outputsToInstall` names that output, so it is genuinely installed rather than hidden
-        behind a library-only default -- but that build passes `--disable-readline`
-        (pkgs/development/libraries/sqlite: `interactive ? false`), leaving a prompt with no line
-        editing, no history and no arrow keys. `sqlite-interactive` is the same package with
-        `interactive = true`, which adds readline and ncurses. Arch's own `sqlite` links
-        `libreadline`/`libncursesw` unconditionally, so the bare pair would have quietly declared
-        one capability on Arch and a materially worse one on NixOS -- exactly what this catalogue
-        exists to prevent. Nothing else in the family installs a second `bin/sqlite3` into
-        `environment.systemPackages`, so the two builds never collide there.
-      '';
     };
   };
 

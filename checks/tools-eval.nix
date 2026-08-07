@@ -24,7 +24,7 @@ let
     git = [ "lazygit" "gitui" "github-cli" "gh-dash" ];
     system = [ "btop" "bottom" "s-tui" "isd" "lazydocker" "lsof" "hwinfo" ];
     network = [ "bandwhich" "trippy" "gping" "termscp" "curl" "wget" ];
-    data = [ "jq" "yq" "jless" "visidata" "rainfrog" "sqlite" ];
+    data = [ "jq" "yq" "jless" "visidata" ];
     media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" "exiftool" "mediainfo" "imagemagick" ];
     archive = [ "p7zip" "unzip" "zip" "unar" "cabextract" ];
     integrity = [ "mp3val" "flac" "shntool" "hashdeep" "rhash" "par2cmdline" ];
@@ -52,8 +52,8 @@ let
     # comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
     # term it belongs to, and a label that no longer adds up is itself the signal that one of the
     # two was forgotten.
-    "every group contributes to \`selected\` (16+4+4+6+4+7+6+6+9+5+6+3+2+7 = 85)" =
-      lib.length full.selected == 85;
+    "every group contributes to \`selected\` (16+4+4+6+4+7+6+4+9+5+6+3+2+7 = 83)" =
+      lib.length full.selected == 83;
 
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "shntool" "timg" ];
@@ -92,10 +92,16 @@ let
       && has full.nixosPackages "unar"
       && has full.nixosPackages "exiftool";
 
-    "sqlite names the readline build on nixpkgs -- the bare attribute ships its CLI with --disable-readline, where Arch's own package links readline unconditionally" =
-      has full.archPackages "sqlite"
-      && has full.nixosPackages "sqlite-interactive"
-      && !(has full.nixosPackages "sqlite");
+    # The `data` group is JSON/YAML/CSV and stops there: every database tool -- wire shells,
+    # multi-engine command lines, on-disk file inspectors -- is nixdb's. visidata stays because a
+    # SQLite loader is one of two dozen formats it opens, not what it is for; asserted so the group
+    # cannot quietly reacquire a database client.
+    "the data group names no database client, and visidata is still in it" =
+      has full.archPackages "visidata"
+      && !(has full.archPackages "sqlite")
+      && !(has full.archPackages "rainfrog")
+      && !(has full.nixosPackages "sqlite-interactive")
+      && !(has full.nixosPackages "rainfrog");
 
     # ── visidata's nixpkgsOverride: the closure-lean escape hatch, checked structurally only --
     # this file stays pkgs-free (see its own header), so it cannot call the override itself; that

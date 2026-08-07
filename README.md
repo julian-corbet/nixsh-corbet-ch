@@ -83,13 +83,21 @@ graphical fallback. Exception, not duplication — nixmedia's catalogue does not
 there is exactly one place it is declared. See `lib/tools.nix`'s
 header for the full reasoning and further worked examples (cmus, zathura, OBS, asciinema/vhs).
 
+The rule decides display, not subject, so one boundary is worth stating outright: **no database
+tool is catalogued here.** Wire-protocol shells, multi-engine command lines and the inspectors that
+open a database file on disk all pass the terminal test and all belong to
+[nixdb](https://github.com/julian-corbet/nixdb-corbet-ch) instead, because subject beats substrate
+when a repository exists for the subject. `visidata` is the near miss and stays: SQLite is one of
+two dozen formats it opens, so reading a database is something it *can* do rather than what it is
+*for*.
+
 Groups: `core` (bat, eza, tree, fd, ripgrep, repgrep, fzf, delta, dust, duf, hexyl, file, tokei,
 cloc, tealdeer, bc, pigz),
 `integrate` (starship, atuin, direnv, zoxide — see below), `nav` (yazi, broot, superfile, ncdu), `edit`
 (helix, neovim, nano, nano-syntax-highlighting, zellij, tmux), `git` (lazygit, gitui, github-cli,
 gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker, lsof, hwinfo), `network` (bandwhich, trippy,
 gping, termscp), `data` (jq, yq, jless,
-visidata, rainfrog, sqlite), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus, exiftool, mediainfo,
+visidata), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus, exiftool, mediainfo,
 imagemagick), `archive` (p7zip, unzip, zip, unar, cabextract), `integrity` (mp3val, flac, shntool,
 hashdeep, rhash, par2cmdline), `comms` (aerc, gomuks,
 newsboat), `record` (vhs, asciinema — terminal *session* recording, not screen recording; that
