@@ -85,8 +85,8 @@
     eza = { arch = "eza"; nixpkgs = "eza"; note = "ls replacement -- git status, tree view, icons."; };
     fd = { arch = "fd"; nixpkgs = "fd"; note = "find replacement -- sane defaults, respects .gitignore."; };
     ripgrep = { arch = "ripgrep"; nixpkgs = "ripgrep"; note = "grep replacement -- what fzf/helix/yazi's own file search shells out to."; };
-    fzf = { arch = "fzf"; nixpkgs = "fzf"; note = "fuzzy finder -- a library other tools embed (zoxide's interactive mode, shell history search) as much as a standalone command."; };
     repgrep = { arch = "repgrep"; nixpkgs = "repgrep"; note = "interactive ripgrep-based search-and-replace for a reviewed replacement workflow."; };
+    fzf = { arch = "fzf"; nixpkgs = "fzf"; note = "fuzzy finder -- a library other tools embed (zoxide's interactive mode, shell history search) as much as a standalone command."; };
     zoxide = { arch = "zoxide"; nixpkgs = "zoxide"; note = "cd replacement that ranks directories by frecency (frequency + recency); needs a shell hook to work at all, see `integrate` below for the shape that pattern takes when a tool NEEDS one -- zoxide's own hook is simple enough (`zoxide init <shell>`) it is left as a plain `interactiveInit` line for a consumer to write rather than a second generated mechanism for one more tool."; };
     delta = {
       arch = "git-delta";
@@ -191,6 +191,7 @@
 
   # ── Git ─────────────────────────────────────────────────────────────────────────────────────
   git = {
+    git = { arch = "git"; nixpkgs = "git"; note = "git itself. This group catalogued four ways to DRIVE git before it catalogued git, so every host got the TUIs and dashboards from a package the distro happened to have pulled in as someone else's dependency. Wanted on every machine -- there is no host in this family where the absence of git would be correct."; };
     lazygit = { arch = "lazygit"; nixpkgs = "lazygit"; note = "full git TUI -- stage, commit, branch, rebase, stash, all from panels."; };
     gitui = { arch = "gitui"; nixpkgs = "gitui"; note = "faster-starting, narrower-scope git TUI than lazygit -- staging/committing/diffing, not every git subcommand's own workflow."; };
     github-cli = { arch = "github-cli"; nixpkgs = "gh"; note = "GitHub's terminal client for repositories, pull requests, issues, releases and API calls."; };
@@ -222,16 +223,38 @@
     nmap = { arch = "nmap"; nixpkgs = "nmap"; note = "network discovery and port/service inspection."; };
     sniffnet = { arch = "sniffnet"; nixpkgs = "sniffnet"; note = "packet/traffic monitor with a friendlier summary view than raw tcpdump/wireshark output."; };
     tcpdump = { arch = "tcpdump"; nixpkgs = "tcpdump"; note = "packet capture for protocol-level troubleshooting."; };
-    termscp = { arch = "termscp"; nixpkgs = "termscp"; note = "dual-pane file transfer TUI -- SFTP/FTP/SCP/S3/SMB/WebDAV, a terminal-native alternative to a GUI transfer client."; };
+    termscp = {
+      arch = "termscp";
+      nixpkgs = "termscp";
+      note = "dual-pane file transfer TUI -- SFTP/FTP/SCP/S3/SMB/WebDAV, a terminal-native alternative to a GUI transfer client.";
+
+      # nixpkgs' own termscp hard-links `buildInputs = [ dbus openssl samba ]`
+      # (pkgs/by-name/te/termscp/package.nix) for its SMB support -- no cargo feature flag to build
+      # it out, unlike visidata's own optional PYTHON deps above. Confirmed EXCLUSIVE to this entry:
+      # `nix-store -q --requisites` against every other tool in the real production selection
+      # (infra's modules/shared/shells.nix) shows nothing else pulling samba. Standalone closure
+      # 456.8 MiB; the real MARGINAL cost in a deduplicated whole-selection buildEnv is smaller
+      # (~136 MiB, measured dropping it from the nixvps-class selection) -- most of samba's own
+      # weight (krb5, openssl, ...) is already paid by other tools in the selection regardless, so
+      # neither number alone is the whole story; both are recorded so a future reader does not have
+      # to re-measure to know which one applies to their question.
+      #
+      # NOT trimmed here: a compiled Rust `buildInputs` linkage is a materially riskier class of
+      # change than visidata's lazy Python imports above -- overridePythonAttrs on a
+      # buildPythonApplication only touches what gets IMPORTED at runtime; dropping a Rust
+      # buildInput changes what the binary LINKS AGAINST, and termscp's own Cargo feature gates
+      # (does it even have an SMB-off build?) were not checked. Left as a named, evidenced
+      # candidate for whoever picks it up next, not a TODO to rediscover from scratch.
+    };
     curl = {
       arch = "curl";
       nixpkgs = "curl";
-      note = "the terminal's own most basic HTTP(S)/FTP request tool -- present today on both hosts ONLY as a dependency (appstream, cmake, git, flatpak, fisher, exiv2, and more), the identical accidental-survival shape wget's own note below names explicitly. Declared here for the same reason: the catalogue records what a host is MEANT to have, not what happens to be pulled in by whatever else currently depends on it -- true regardless of curl also being a ubiquitous dependency; that is not a reason to leave the two most fundamental network CLI tools uncatalogued. `nixpkgs` is a real, ordinary attribute here -- verified by force-evaluation against the pinned nixpkgs revision (this file's own header) -- unlike man-db's deliberate `nixpkgs = null` -- which is the ONLY null in this table, and means one specific thing: NixOS already installs man-db through `documentation.man.enable`, so naming the attribute would install a second copy. It does NOT mean 'Arch only'. nixsh is a base load for every managed host, so man-pages and wget name real attributes and reach NixOS hosts too -- verified: `documentation.man.enable` adds man-db and NOTHING else, so a null there would have left NixOS hosts with no man-pages at all.";
+      note = "the terminal's basic HTTP(S)/FTP request tool. The catalogue records intended tools, not incidental dependency closures. Unlike man-db's deliberate `nixpkgs = null`, curl names a real nixpkgs attribute on every supported plane.";
     };
     wget = {
       arch = "wget";
       nixpkgs = "wget";
-      note = "the other fundamental fetch tool alongside curl. `nixpkgs = null` keeps this entry scoped to the two Arch hosts, where the actual gap lives -- on archlxc wget is already a deliberate, standalone install; on the laptop it currently survives only as a dependency of `cloud-image-utils`, and would silently vanish the day that package does, with no distro-level signal anything changed. Declaring it here converts that accidental survival into an intentional one on the hosts where it matters; it makes no claim about a nixpkgs side, unlike man-db above.";
+      note = "the other fundamental fetch tool alongside curl. It names ordinary Arch and nixpkgs packages, so a selection declares the same capability on every supported plane.";
     };
   };
 
@@ -401,14 +424,9 @@
       note = ''
         the actual man PAGE CONTENT for sections 2/3/4/5/7/8/9 -- syscalls, C library calls, kernel
         interfaces -- that individual packages' own bundled `/share/man` output rarely carries;
-        man-db above is only the reader, not the library. `nixpkgs = null` here for a DIFFERENT
-        reason than man-db's, not the same one restated: the identical force-evaluated NixOS
-        instantiation used to verify man-db's claim shows `documentation.man.enable` provisions
-        `man-db` automatically but does NOT add `man-pages` to `environment.systemPackages` at all
-        -- there is no NixOS default this would shadow. `nixpkgs = null` is used anyway because this
-        entry's job is the two Arch hosts specifically, where the gap is real (absent entirely on
-        archlxc, present only via man-db's own transitive pull on the laptop) -- giving corbet-server
-        a first-ever `man-pages` declaration would be a separate decision this entry does not make.
+        man-db above is only the reader, not the library. `documentation.man.enable` provides
+        `man-db` on NixOS but does not add `man-pages` to `environment.systemPackages`, so this
+        entry names the ordinary `man-pages` package on both Arch and NixOS.
       '';
     };
   };
