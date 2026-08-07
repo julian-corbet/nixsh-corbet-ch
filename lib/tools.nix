@@ -123,7 +123,20 @@
         decode the payload.
       '';
     };
-    tokei = { arch = "tokei"; nixpkgs = "tokei"; note = "lines-of-code counter, by language, per directory."; };
+    tokei = { arch = "tokei"; nixpkgs = "tokei"; note = "lines-of-code counter, by language, per directory -- the fast, single-tree snapshot. See cloc just below for the two-tree/two-commit question this one cannot answer."; };
+    cloc = {
+      arch = "cloc";
+      nixpkgs = "cloc";
+      note = ''
+        the older, Perl-based lines-of-code counter, catalogued beside tokei rather than
+        superseded by it: `--diff` / `--count-and-diff` / `--git` compare two trees, or two git
+        commits/tags, and report added/removed/modified/same lines of CODE and of COMMENTS
+        separately. Checked, not assumed -- tokei's own `--help` carries no diff-shaped option at
+        all, so "how much did this actually change" has no answer there. For a plain single-tree
+        snapshot, tokei stays the reach-for; cloc is the one that answers the two-point-in-time
+        question.
+      '';
+    };
     tealdeer = { arch = "tealdeer"; nixpkgs = "tealdeer"; note = "tldr client -- community-maintained example-first command summaries, for the `--help` a tool didn't write."; };
     bc = { arch = "bc"; nixpkgs = "bc"; note = "arbitrary-precision calculator -- the decimal/floating-point escape hatch bash's own `$(( ))` cannot provide at all (bash arithmetic is integer-only)."; };
     pigz = { arch = "pigz"; nixpkgs = "pigz"; note = "gzip replacement, parallel across every core instead of one -- the same reach-for upgrade `dust`/`duf` above already are for `du`/`df`."; };

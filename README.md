@@ -83,7 +83,8 @@ graphical fallback. Exception, not duplication — nixmedia's catalogue does not
 there is exactly one place it is declared. See `lib/tools.nix`'s
 header for the full reasoning and further worked examples (cmus, zathura, OBS, asciinema/vhs).
 
-Groups: `core` (bat, eza, tree, fd, ripgrep, fzf, delta, dust, duf, hexyl, file, tokei, tealdeer),
+Groups: `core` (bat, eza, tree, fd, ripgrep, repgrep, fzf, delta, dust, duf, hexyl, file, tokei,
+cloc, tealdeer, bc, pigz),
 `integrate` (starship, atuin, direnv, zoxide — see below), `nav` (yazi, broot, superfile, ncdu), `edit`
 (helix, neovim, nano, nano-syntax-highlighting, zellij, tmux), `git` (lazygit, gitui, github-cli,
 gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker, lsof), `network` (bandwhich, trippy,
