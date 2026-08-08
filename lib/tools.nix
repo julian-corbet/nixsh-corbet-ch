@@ -303,6 +303,51 @@
         summary) and `mk_isdnhwdb`.
       '';
     };
+    wev = {
+      arch = "wev";
+      nixpkgs = "wev";
+      note = ''
+        Wayland event viewer -- `xev` for Wayland. Prints what a session actually DELIVERS:
+        keycodes and the keysyms libxkbcommon resolves them to, the modifier mask that was live at
+        the moment of the press, pointer motion and button codes, and the surface events a client
+        receives (enter, leave, scale, output change). It answers the question no configuration
+        file can -- a keybind does not fire, and this says whether the compositor sent that key at
+        all, sent a different keysym, or sent it with a modifier nobody expected.
+
+        WHY IT IS IN THIS CATALOGUE, since it does open a Wayland window and this file's own
+        admission test turns on exactly that. The test asks whether a tool has a DISPLAY MODE -- a
+        way of SHOWING its results -- and whether that is its default. wev has none. Everything it
+        produces is a line of text on stdout, always, with no other mode to switch to; the window
+        it creates is its INPUT endpoint, the surface the events have to arrive on, and nothing is
+        rendered in it worth looking at. That is `xev`'s shape, which nobody files as a graphical
+        application either, and it is the OPPOSITE shape from the mpv exception in this file's
+        header: mpv's window is its output, and mpv is catalogued here DESPITE the rule. This entry
+        is here BECAUSE of it.
+
+        IT STILL NEEDS A RUNNING SESSION TO SAY ANYTHING, which is a runtime precondition and not a
+        placement argument. On a host with no compositor it exits immediately on the connection,
+        exactly as `dig` is silent without a resolver and `nmap` without a network. Every tool in
+        this group is a diagnostic, and a diagnostic being useless where the thing it diagnoses is
+        absent has never meant it belongs somewhere else.
+
+        FILED UNDER `system`, BESIDE `lsof` AND `hwinfo`, on that group's own axis rather than by
+        subject. Each member answers a different question about the live machine -- what is running
+        (btop/bottom/s-tui/isd/lazydocker), what a process is HOLDING (lsof), what hardware EXISTS
+        (hwinfo) -- and this one answers what the input stack is EMITTING, which sits between the
+        last two: hwinfo says the keyboard is there, wev says what pressing it actually sends.
+        Nothing in `misc` is an inspector; this is.
+
+        THE SAME WORD THREE TIMES OVER -- pacman package, nixpkgs attribute and the single binary
+        are all `wev`, which is rare enough in this file to be worth stating. Verified 2026-08-08
+        the way this file's header requires: `pacman -Si wev` resolves on a live CachyOS host
+        (`cachyos-extra-v3`, a rebuild of the Arch repo rather than a derivative-only package),
+        archlinux.org's package search returns one result in `extra`, the AUR RPC returns zero, and
+        the nixpkgs attribute was FORCED to a `.drvPath` rather than merely looked up. Both
+        platforms carry 1.1.0, both homepages resolve to git.sr.ht/~sircmpwn/wev, and the realized
+        store path's `bin/` holds exactly `wev` -- matching the Arch package's own file list, so
+        there is no command-surface divergence of the kind this file's header warns about.
+      '';
+    };
   };
 
   # ── Network diagnostics ─────────────────────────────────────────────────────────────────────
