@@ -94,7 +94,7 @@ two dozen formats it opens, so reading a database is something it *can* do rathe
 Groups: `core` (bat, eza, tree, fd, ripgrep, repgrep, fzf, delta, dust, duf, hexyl, file, tokei,
 cloc, tealdeer, bc, pigz),
 `integrate` (starship, atuin, direnv, zoxide — see below), `nav` (yazi, broot, superfile, ncdu), `edit`
-(helix, neovim, nano, nano-syntax-highlighting, zellij, tmux), `git` (lazygit, gitui, github-cli,
+(helix, neovim, nano, nano-syntax-highlighting, micro, zellij, tmux), `git` (lazygit, gitui, github-cli,
 gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker, lsof, hwinfo), `network` (bandwhich, trippy,
 gping, termscp), `data` (jq, yq, jless,
 visidata), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus, exiftool, mediainfo,
@@ -173,6 +173,52 @@ wire in." The one exception is the shell-integration **hook** above — that gap
 specifically, because it is the one piece home-manager's own modules cannot render without the
 second-binary trap this whole repo exists to avoid.
 
+## The underlay: the distro's config goes underneath yours
+
+`nixsh.underlay` names one idea and applies it to every tool that needs it: **a distro-provided
+base layer, with everything nixsh declares sitting on top of it and winning.** The distro keeps
+improving its base; every difference from it stays a deliberate, visible line in a Nix file.
+
+That layering already works natively — with no help from anyone — for `sysctl.d`, `udev/rules.d`,
+`modprobe.d` and systemd drop-ins: the vendor's file goes in `/usr/lib`, yours goes in `/etc`, and
+yours wins by rule. Shell and editor config has no such rule. A distro ships its base through
+`/etc/skel`, which is a **one-shot copy at account creation** and never a layer: an account made
+before the package existed never gets it, an account made after gets a frozen copy no upgrade
+touches, and neither has any relationship to the file the package actually maintains.
+
+```nix
+nixsh.underlay = lib.mkMerge [
+  config.nixsh.underlayPresets.cachyos            # fish + zsh vendor configs, micro's schemes
+  { fish.before = "…"; }                          # per-host refinement, merged not replaced
+];
+nixarch.packages.pacman = config.nixsh.underlayPackages;   # the packages that PROVIDE the bases
+```
+
+Two ways to land a base, because the tools genuinely differ:
+
+| `layer` | How it lands | Why ours wins |
+|---|---|---|
+| `"shell"` | The base is `source`d at runtime, **first**, before anything nixsh writes. | Redefinition. The last `alias`/`function`/`set` for a name survives, so "ours last" *is* "ours wins". For fish that means two `conf.d` files: `00-nixsh-underlay.fish` and `50-nixsh.fish`. For bash/zsh, which have no `conf.d`, the base goes at the top of the one rc file. |
+| `"files"` | The base's children are symlinked into the tool's own config directory. | Per file. Every name in `ours` is refused from the base, and the linker never replaces a name it did not create itself — so a file nixsh declares simply is the file that gets written. |
+
+Three properties it holds to, none of them optional:
+
+- **Ours always wins**, and it is proved rather than assumed —
+  `experiments/underlay-ours-wins.sh` runs a real fish and a real zsh and reads back which
+  definition survived; `experiments/underlay-files-merge.sh` runs the file layer's activation
+  logic through a full switch cycle and drives micro itself through a pty.
+- **It degrades cleanly when the base is absent.** The existence test is emitted *into the shell*
+  and *into the activation script*, so it is asked on the target machine at the moment it matters.
+  A plain Arch host, a NixOS host, or a host whose package was uninstalled last week takes the
+  false branch and keeps everything nixsh declares.
+- **No impure path is ever read at evaluation time.** A base is a distro artifact, not a Nix
+  input. `builtins.pathExists` on `/usr/share` would answer about whichever machine built the
+  config, which is not necessarily the one that runs it.
+
+Rendered by the **home-manager backend only** — the same boundary `nixsh.tools.shellHooks` draws,
+for the same reason. `nixosModules.nixsh` warns rather than silently doing nothing if a shared
+config file declares one.
+
 ## loginShell is recorded, not enforced
 
 `nixsh.loginShell` states intent. It does not run `chsh`: the login shell lives in `/etc/passwd`,
@@ -185,6 +231,23 @@ Same caution nixfish documented. `~/.bashrc` and `~/.config/fish/config.fish` ar
 empty — a vendor package may own them, or you may have edited them for years. Back up before first
 activation (`home-manager switch -b backup`), as a one-time flag rather than a permanent option.
 
+**The underlay has its own one-time step, and it is the same problem one layer down.** A
+`layer = "files"` entry never replaces a name it did not create — that refusal is what makes "ours
+wins" structural rather than merely declared, and it does not distinguish between a file you
+deliberately declared and one `/etc/skel` copied into your home years ago at account creation. On
+a host where the account predates the underlay, those copies are sitting exactly where the links
+want to go, so the first switch silently changes nothing at all.
+
+Check what is actually there before assuming the mechanism is live:
+
+```console
+$ ls -ld ~/.config/micro/colorschemes      # a real directory => the stale skel copy, not a link
+$ diff -r ~/.config/micro /etc/skel/.config/micro   # identical? then it is safe to remove
+```
+
+Remove the stale copies once (after confirming they are the distro's, unedited), and the next
+switch links them. Everything named in `ours` stays yours and is never involved.
+
 ## Repository layout
 
 | Path | Purpose |
@@ -192,12 +255,12 @@ activation (`home-manager switch -b backup`), as a one-time flag rather than a p
 | `flake.nix` | Flake entry point: `homeModules.default`, `nixosModules.default`, `systemManagerModules.default`, `lib.catalogue`/`lib.policy` (shells), `lib.toolsCatalogue`/`lib.toolsPolicy` (tools), and `checks`. |
 | `lib/shells.nix` | The shell catalogue — fish/bash/zsh, per-shell export/path/alias syntax. |
 | `lib/tools.nix` | The tool catalogue — one entry per selectable tool, platform-specific package names, and the placement-rule header. |
-| `modules/nixsh.nix` | Shell policy: environment, per-shell config, greeting. |
+| `modules/nixsh.nix` | Shell policy: environment, per-shell config, greeting, and the distro `underlay`. |
 | `modules/tools.nix` | Tool policy: selection groups, resolved package lists, shell-integration hooks. |
 | `modules/home.nix`, `modules/nixos.nix`, `modules/arch.nix` | The three backends, each importing both policy modules. |
-| `checks/` | `nix flake check`-wired proof that the tool catalogue's selection/resolution/hook logic is wired correctly (module evaluation, not a real package build). |
-| `experiments/` | `render-smoke-test.nix` (shell rendering), `validate-nixpkgs-names.nix` (force-eval every catalogued nixpkgs name), `verify-package-names.sh` (the full Arch + AUR + nixpkgs verification, reproducible). |
-| `studies/` | Findings from the experiments above that changed how the tool catalogue was shaped. |
+| `checks/` | `nix flake check`-wired proof that the tool catalogue's selection/resolution/hook logic and the underlay's own resolution are wired correctly (module evaluation, not a real package build). |
+| `experiments/` | `render-smoke-test.nix` (shell rendering), `validate-nixpkgs-names.nix` (force-eval every catalogued nixpkgs name), `verify-package-names.sh` (the full Arch + AUR + nixpkgs verification, reproducible), `underlay-ours-wins.sh` and `underlay-files-merge.sh` (the underlay's claims, against real shell and editor binaries). |
+| `studies/` | Findings from the experiments above that changed how the tool catalogue or the underlay was shaped. |
 
 ## Related projects
 

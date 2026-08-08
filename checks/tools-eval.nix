@@ -20,7 +20,7 @@ let
     core = [ "bat" "eza" "tree" "fd" "ripgrep" "fzf" "delta" "dust" "duf" "hexyl" "file" "tokei" "cloc" "tealdeer" "bc" "pigz" ];
     integrate = [ "starship" "atuin" "direnv" "zoxide" ];
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
-    edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "zellij" "tmux" ];
+    edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "micro" "zellij" "tmux" ];
     git = [ "lazygit" "gitui" "github-cli" "gh-dash" ];
     system = [ "btop" "bottom" "s-tui" "isd" "lazydocker" "lsof" "hwinfo" ];
     network = [ "bandwhich" "trippy" "gping" "termscp" "curl" "wget" "rsync" ];
@@ -52,8 +52,8 @@ let
     # comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
     # term it belongs to, and a label that no longer adds up is itself the signal that one of the
     # two was forgotten.
-    "every group contributes to \`selected\` (16+4+4+6+4+7+7+4+9+5+6+3+2+7 = 84)" =
-      lib.length full.selected == 84;
+    "every group contributes to \`selected\` (16+4+4+7+4+7+7+4+9+5+6+3+2+7 = 85)" =
+      lib.length full.selected == 85;
 
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "shntool" "timg" ];
@@ -69,6 +69,15 @@ let
       && has full.nixosPackages "nano-syntax-highlighting"
       && has full.nixosPackages "gh"
       && has full.nixosPackages "gh-dash";
+
+    # micro is the one editor whose pacman name and nixpkgs attribute are the SAME plain word, so
+    # the failure this pins down is not a wrong name -- it is the entry being quietly reclassified
+    # as AUR-only (which would move it out of the pacman transaction and into a helper that has
+    # nothing to fetch, since the AUR has no `micro` at all).
+    "micro is an official-repo package on both platforms, never an AUR name" =
+      has full.archPackages "micro"
+      && !(has full.aurPackages "micro")
+      && has full.nixosPackages "micro";
 
     "delta resolves to the pacman name git-delta, not the bare (wrong) name" =
       has full.archPackages "git-delta" && !(has full.archPackages "delta");

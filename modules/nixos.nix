@@ -87,7 +87,16 @@ in
       warnings =
         lib.optional (cfg.tools.unavailableOnNixos != [ ])
           "nixsh: not installed on NixOS via this catalogue: ${lib.concatStringsSep ", " cfg.tools.unavailableOnNixos} (nixpkgs = null in lib/tools.nix -- either no nixpkgs equivalent exists, or the entry deliberately excludes one; see that entry's own note)"
-        ++ toolsStaleMappings;
+        ++ toolsStaleMappings
+        # A WARNING, not an assertion, and the difference is a real case rather than caution:
+        # `nixsh.underlay` is a home-manager-backend feature (see its own option doc), but a mixed
+        # fleet's SHARED config file is a perfectly reasonable place to declare one, and such a
+        # file gets composed on every plane including this one. Failing the build there would
+        # punish a correct declaration for being read by a backend that has nothing to do. What is
+        # NOT acceptable is silence -- an option that looks live in the source and renders nothing
+        # is exactly the class of bug this repo's other assertions exist for -- so it says so.
+        ++ lib.optional (cfg.underlay != { })
+          "nixsh: nixsh.underlay is declared (${lib.concatStringsSep ", " (lib.attrNames cfg.underlay)}) but this is the NixOS backend, which does not render it. The underlay is written by the home-manager backend (modules/home.nix), which owns shell rc files and paths under a real $HOME; on NixOS the distro IS nix, so there is no vendor base layer for it to sit under. Declare it in a home-manager tree, or drop it here.";
     }
 
     # `/etc/xdg/<path>`, mirroring `~/.config/<path>` on the home-manager backend -- see

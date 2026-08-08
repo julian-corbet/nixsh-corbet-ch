@@ -237,6 +237,34 @@
         never offers a host both names to select at once.
       '';
     };
+    micro = {
+      arch = "micro";
+      nixpkgs = "micro";
+      note = ''
+        Terminal editor with ORDINARY desktop keybindings -- ctrl-s saves, ctrl-q quits, ctrl-c/v
+        copy and paste, and there is no mode to be in the wrong one of. That is a different
+        proposition from everything else in this group, not a weaker version of it: neovim and
+        helix are modal and configured, nano is the dependable floor with its own idiosyncratic
+        control keys, and micro is the one an operator can hand to something -- or someone --
+        expecting a text box to behave like a text box. `$EDITOR` for a commit message and a
+        five-second config fix are the cases it wins.
+
+        BOTH NAMES ARE PLAIN `micro`, which is exactly the shape this file's own header warns about
+        (a name that resolves on both platforms while pointing at two different projects), so it
+        was cross-checked rather than assumed: pacman's `URL` is https://micro-editor.github.io/
+        and nixpkgs' `meta.homepage` is https://micro-editor.github.io -- the same project, and the
+        nixpkgs attribute force-evaluates to a real `micro-2.0.15` derivation rather than a
+        rename-to-throw. Arch's copy is in `extra` upstream (verified against archlinux.org's own
+        package API, not only against a CachyOS mirror, which rebuilds the same package as
+        `cachyos-extra-v3/micro` and would prove nothing about a plain Arch host), and the AUR RPC
+        returns nothing for the name -- so `aur` stays false.
+
+        ITS COLORSCHEMES AND SYNTAX FILES ARE A SEPARATE QUESTION from installing it, and one this
+        repo now answers elsewhere: micro has no include mechanism and a single settings.json, so a
+        distro that ships a curated set of them is layered underneath a host's own settings through
+        `nixsh.underlay` (modules/nixsh.nix) rather than by anything in this catalogue entry.
+      '';
+    };
     zellij = { arch = "zellij"; nixpkgs = "zellij"; note = "terminal multiplexer with a discoverable default keybinding layer (on-screen hints) -- tmux's own opposite design choice."; };
     tmux = { arch = "tmux"; nixpkgs = "tmux"; note = "terminal multiplexer -- the older, script/plugin-ecosystem-heavy alternative to zellij; catalogued as a genuine second choice, not superseded by it."; };
   };

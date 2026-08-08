@@ -42,6 +42,9 @@
         tools-eval = import ./checks/tools-eval.nix {
           pkgs = nixpkgs.legacyPackages.${system};
         };
+        underlay-eval = import ./checks/underlay-eval.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+        };
       });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);

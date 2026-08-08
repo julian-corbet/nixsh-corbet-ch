@@ -27,6 +27,59 @@ let
   # directly at each bash/zsh call site below rather than through a second helper here.
   escapeFishSingle = v: "'" + builtins.replaceStrings [ "\\" "'" ] [ "\\\\" "\\'" ] v + "'";
 
+  # ── The underlay's own rendering ─────────────────────────────────────────────────────────────
+  #
+  # See the `underlay` option's own doc below for what the mechanism IS. This is only how a
+  # `layer = "shell"` entry turns into text.
+  #
+  # THE GUARD IS A RUNTIME TEST, NOT AN EVAL-TIME ONE, and that is the whole reason this renders a
+  # conditional instead of deciding anything in Nix. `path` names a file the DISTRO owns, outside
+  # the store: it appears when a package is installed and disappears when it is removed, both of
+  # which happen long after this module was evaluated -- and on a host whose config was built
+  # somewhere else entirely, an eval-time `builtins.pathExists` would be answering about the BUILD
+  # machine's filesystem, not the target's. So the test is emitted into the shell and asked every
+  # time a shell starts, which is the only moment the answer is both current and about the right
+  # box. A host with no such package installed, a plain Arch host, or a NixOS host that inherited
+  # this declaration from a shared file all take the false branch and lose nothing else.
+  #
+  # `-r`, not `-f`/`-e`: an unreadable file is as unusable as a missing one, and `source` on it
+  # would abort the rc file rather than degrade.
+  underlayBlock = u:
+    let
+      header = ''# nixsh underlay "${u.name}" -- the distro's own base layer, sourced BEFORE anything nixsh declares.'';
+    in
+    if u.shell == "fish" then
+      lib.concatStringsSep "\n"
+        (lib.filter (x: x != "") [
+          header
+          u.before
+          ''
+            if test -r ${escapeFishSingle u.path}
+                source ${escapeFishSingle u.path}
+            end''
+        ])
+    else
+      lib.concatStringsSep "\n" (lib.filter (x: x != "") [
+        header
+        u.before
+        ''
+          if [ -r ${lib.escapeShellArg u.path} ]; then
+            source ${lib.escapeShellArg u.path}
+          fi''
+      ]);
+
+  # Every declared-and-enabled entry, each carrying its own attribute KEY back out as `name` --
+  # the same shape nixagent's own `resolve` uses, and for the same reason: everything downstream
+  # (the rendered header comment above, the activation script's own per-entry banner in
+  # modules/home.nix) wants to name WHICH entry it is acting on, and re-deriving that by matching
+  # on `path` would be a second source of truth. `mapAttrsToList` iterates in attribute-name
+  # order, so the rendered order is the declaration's own alphabetical order -- deterministic, and
+  # stable across a host adding an unrelated entry.
+  underlayList = lib.mapAttrsToList (n: u: u // { name = n; })
+    (lib.filterAttrs (_: u: u.enable) cfg.underlay);
+
+  underlayFor = layer: lib.filter (u: u.layer == layer) underlayList;
+
   # `terminal` folds in here rather than being a second mechanism: it IS an environment variable,
   # it just has a name worth declaring semantically so other modules can read the choice instead
   # of matching on a string. Declared last, so it wins over a hand-set environment.variables
@@ -252,6 +305,209 @@ in
       '';
     };
 
+    # ── THE UNDERLAY ──────────────────────────────────────────────────────────────────────────
+    #
+    # ONE MECHANISM, NAMED ONCE: a tool takes the DISTRO's own config as a base layer, and
+    # everything nixsh declares sits on top of it and wins. The distro keeps improving its base;
+    # every difference from it stays a deliberate, visible line in a Nix file.
+    #
+    # WHY THIS HAS TO EXIST AT ALL. The same layering already works natively, with no help from
+    # anyone, for `sysctl.d`, `udev/rules.d`, `modprobe.d` and systemd drop-ins: the vendor's file
+    # goes in /usr/lib, yours goes in /etc, and yours wins by rule. Shell and editor config has no
+    # such rule. A distro ships its base through `/etc/skel`, which is a ONE-SHOT COPY performed
+    # at account creation and never again -- not a layer at all. An account created before the
+    # package existed never gets it; an account created after gets a frozen copy that no upgrade
+    # ever touches; and neither one has any relationship to the file the package actually
+    # maintains. This option is the missing layer.
+    #
+    # TWO WAYS TO LAND A BASE, because tools differ and pretending otherwise would render one of
+    # them badly (the same reason this module shares the ENVIRONMENT layer across shells but
+    # deliberately does not share aliases):
+    #
+    #   layer = "shell"  The base is a SCRIPT and the tool is a shell, so the base is `source`d --
+    #                    at runtime, first, before anything nixsh writes. Redefinition is the
+    #                    winning rule in every shell there is: the last `alias`/`function`/`set`
+    #                    for a name is the one that survives, so "ours last" IS "ours wins".
+    #   layer = "files"  The base is a DIRECTORY of files for a tool with no include mechanism and
+    #                    no source order to exploit. Its children are linked into the tool's own
+    #                    config directory, and every name nixsh itself declares is refused from the
+    #                    base -- so the merge happens per FILE, and ours is simply the file that
+    #                    gets written.
+    #
+    # NOTHING HERE IS READ AT EVALUATION TIME. `path` is a plain string naming a live system path
+    # (`/usr/share/...`, `/etc/skel/...`) that no `builtins.readFile`/`pathExists` ever touches --
+    # see `underlayBlock`'s own comment in this module for the full argument, and modules/home.nix
+    # for the `files` half. A base is a distro artifact, not a Nix input; asking Nix about it would
+    # bake in an answer from the wrong machine at the wrong time.
+    #
+    # RENDERED BY THE HOME-MANAGER BACKEND ONLY, the same boundary `nixsh.tools.shellHooks`
+    # already draws and for the same reason -- it is the one backend that reliably writes shell rc
+    # content and owns paths under a real `$HOME`. modules/nixos.nix warns rather than silently
+    # doing nothing if a NixOS host declares one.
+    underlay = lib.mkOption {
+      default = { };
+      type = lib.types.attrsOf (lib.types.submodule {
+        options = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = "Whether this underlay entry applies. Defaults to true: declaring an entry at all is the decision, and a consumer that wants one temporarily out of the way should be able to say so without deleting the declaration (and losing the comment that explains it).";
+          };
+
+          path = lib.mkOption {
+            type = lib.types.str;
+            example = "/usr/share/cachyos-fish-config/cachyos-config.fish";
+            description = ''
+              Absolute path to the distro's own base, on the TARGET machine. A file for
+              `layer = "shell"`, a directory for `layer = "files"`.
+
+              Never read by Nix. Tested at runtime, every time, by whatever actually consumes it --
+              so a host where the providing package is absent, removed later, or never existed
+              degrades to "no base layer" and keeps everything nixsh declares.
+            '';
+          };
+
+          layer = lib.mkOption {
+            type = lib.types.enum [ "shell" "files" ];
+            description = "How the base lands: `shell` sources a script before nixsh's own rc content, `files` links a directory's children into a config directory. See this option's own header for the full account of both.";
+          };
+
+          package = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            example = "cachyos-fish-config";
+            description = ''
+              The pacman package that PROVIDES `path`, surfaced through `underlayPackages` for the
+              host's own reconciler. Optional, and null by default, because a base can also come
+              from a package the host already installs for another reason entirely.
+
+              Declaring it is what turns "we depend on a distro file" into something a machine can
+              actually reproduce -- the alternative is a `path` that happens to exist on the boxes
+              it was written on and silently does not on the next one. nixsh installs nothing
+              itself here, on any platform: same split it already states for the shells themselves
+              (nix owns config, the system owns the binary), so this is a NAME published for
+              `nixarch.packages.pacman`, not an installation.
+            '';
+          };
+
+          shell = lib.mkOption {
+            type = lib.types.nullOr (lib.types.enum (lib.attrNames catalogue));
+            default = null;
+            description = "`layer = \"shell\"` only: which shell sources this base. Required there, and meaningless (asserted against) otherwise.";
+          };
+
+          before = lib.mkOption {
+            type = lib.types.lines;
+            default = "";
+            description = ''
+              `layer = "shell"` only: literal shell run immediately BEFORE the base is sourced,
+              in the same file.
+
+              This is not a general escape hatch -- `interactiveInit` already is one, and it lands
+              AFTER the base, which is where content belongs by default. `before` exists for the
+              narrow case where the BASE ITSELF reads something at load time and would otherwise
+              read it wrong: a bundled plugin that probes for a helper binary while it is being
+              sourced, for instance, has already decided whether to enable itself by the time
+              anything after the source line runs. Content that merely needs to WIN goes after;
+              content the base must SEE goes here.
+            '';
+          };
+
+          into = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            example = "micro";
+            description = "`layer = \"files\"` only: the tool's config directory, relative to the XDG config home, that the base's children are linked into. Required there, and meaningless (asserted against) otherwise.";
+          };
+
+          ours = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+            example = [ "settings.json" ];
+            description = ''
+              `layer = "files"` only: names inside `into` that NIXSH's consumer declares itself
+              (through `xdg.configFile`, typically). They are never taken from the base, however
+              the base's own copy is named.
+
+              This is the merge direction, written down. Everything not listed here comes from the
+              distro and tracks it; everything listed here is ours and the base does not get a
+              vote. The linker additionally refuses to replace ANY occupied name it did not create
+              itself, so a forgotten entry here fails by leaving the declared file alone rather
+              than by clobbering it -- but it is still declared, because the pruning half needs to
+              know a name became ours, and because the reader of a host's config deserves to see
+              which files are the deliberate overrides.
+            '';
+          };
+        };
+      });
+      description = ''
+        Distro-provided base layers, one entry per tool, keyed by any name you like (the key is
+        used in generated comments and activation output, so make it the tool's name).
+
+        See this option's own header comment in `modules/nixsh.nix` for the design; the short
+        version is: the distro's config goes UNDERNEATH, everything nixsh declares goes on top and
+        wins, and nothing is read from an impure path at evaluation time.
+
+        `underlayPresets` carries a ready-made value for CachyOS.
+      '';
+    };
+
+    # A SIBLING of `underlay`, never nested inside it -- the identical, non-negotiable shape
+    # `greetingPresets` already has, for the identical reason: a consumer's whole point is writing
+    # `nixsh.underlay = config.nixsh.underlayPresets.cachyos;`, and a preset reachable only THROUGH
+    # `nixsh.underlay` would make that assignment read its own target while defining it. That is a
+    # real `error: infinite recursion encountered`, hit live once already on `greeting.presets.*`,
+    # not a matter of taste. See `greeting`'s own header comment for the full account.
+    underlayPresets.cachyos = lib.mkOption {
+      readOnly = true;
+      type = lib.types.attrs;
+      default = {
+        fish = {
+          layer = "shell";
+          shell = "fish";
+          path = "/usr/share/cachyos-fish-config/cachyos-config.fish";
+          package = "cachyos-fish-config";
+        };
+        zsh = {
+          layer = "shell";
+          shell = "zsh";
+          path = "/usr/share/cachyos-zsh-config/cachyos-config.zsh";
+          package = "cachyos-zsh-config";
+        };
+        micro = {
+          layer = "files";
+          into = "micro";
+          path = "/etc/skel/.config/micro";
+          package = "cachyos-micro-settings";
+          ours = [ "settings.json" ];
+        };
+      };
+      description = ''
+        A ready-made underlay for CachyOS: fish's and zsh's vendor configs, and micro's
+        colorschemes and syntax definitions. Public knowledge about a public distro, in
+        `underlay`'s own shape -- reference it wholesale
+        (`nixsh.underlay = config.nixsh.underlayPresets.cachyos;`) and then add per-host detail as
+        ordinary further definitions of the same option
+        (`nixsh.underlay.fish.before = "...";`), which the module system merges per key.
+
+        THE micro ENTRY READS FROM `/etc/skel`, AND THAT IS A MISUSE OF `/etc/skel`. Said plainly
+        rather than hidden behind the option: `/etc/skel` is a TEMPLATE directory, whose contract
+        is "copy me into a new account once", and reading a live config out of it treats it as
+        something it does not claim to be. It is done anyway because the alternative is worse --
+        `cachyos-micro-settings` installs its colorschemes and syntax files ONLY under `/etc/skel`
+        and ships no `/usr/share` copy at all, so the choice is not between a clean source and a
+        dirty one, it is between this and no upstream layer for micro. The risk it carries is
+        specific and bounded: `/etc/skel` may gain files intended purely as new-account templates
+        that nobody wants layered into a live config, which is exactly what `ours` and the
+        linker's refusal to replace an occupied name are there to contain. If upstream ever moves
+        these files to `/usr/share`, this preset's `path` changes and nothing else does.
+
+        Nothing here is CachyOS-only in MECHANISM: `underlay` takes any path from any distro. This
+        is a value, shipped because it is a correct one for a whole family of hosts, in the same
+        spirit as `greetingPresets.fastfetch`.
+      '';
+    };
+
     environment = {
       variables = lib.mkOption {
         type = lib.types.attrsOf lib.types.str;
@@ -319,6 +575,60 @@ in
         comment in this module for the full account of each shell's idiom and how it was tested.
       '';
     };
+
+    underlaySources = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      readOnly = true;
+      description = ''
+        Every `layer = "shell"` underlay entry rendered into its shell's own guarded source block,
+        keyed per shell exactly as `rcFiles`/`greetingInvocations` already are. Empty string for a
+        shell with no entries.
+
+        A backend puts this ABOVE everything `rcFiles` carries for the same shell -- that ordering
+        is the entire promise of the mechanism, so it is computed here once rather than left to
+        each backend to place correctly.
+      '';
+    };
+
+    underlayFiles = lib.mkOption {
+      type = lib.types.listOf lib.types.attrs;
+      readOnly = true;
+      internal = true;
+      description = ''
+        The resolved `layer = "files"` entries, each carrying its own attribute key back out as
+        `name`. Consumed by modules/home.nix's activation scripts -- the file layer has no textual
+        representation to hand a backend the way `underlaySources` does, so what crosses this
+        boundary is the entries themselves.
+      '';
+    };
+
+    underlayPackages = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      readOnly = true;
+      description = ''
+        The `package` of every declared underlay entry that names one, as pacman names, for the
+        host's own reconciler:
+
+          nixarch.packages.pacman = config.nixsh.archPackages ++ config.nixsh.tools.archPackages
+                                 ++ config.nixsh.underlayPackages;
+
+        A THIRD list rather than a merge into either existing one, on purpose. `archPackages` is
+        the shells' own binaries (which must be the SYSTEM's copy -- /etc/shells, login) and
+        `tools.archPackages` is the CLI catalogue; these are neither. They are the packages whose
+        only job is to put a config file on disk for something else to layer under, and a host
+        reading its own package wiring should be able to see that third category rather than
+        discover it by following a name back into a catalogue.
+
+        NO DISTRO GATE HERE, deliberately. A name like `cachyos-fish-config` exists in CachyOS's
+        own repositories and nowhere else -- not upstream Arch, not the AUR -- and an unresolvable
+        name aborts the ENTIRE `pacman -S` transaction, taking every unrelated package with it. The
+        gate that prevents that is the DECLARATION itself: an underlay entry names an absolute path
+        that only exists on one distro, so a host declares one because it runs that distro. There
+        is nothing generic to gate -- a plain Arch host has no reason to declare the entry in the
+        first place, and gets an empty list. This is why the option carries no `distro` enum of its
+        own to keep in step with the several that already exist elsewhere.
+      '';
+    };
   };
 
   config = {
@@ -326,6 +636,15 @@ in
 
     nixsh.greetingInvocations = lib.genAttrs (lib.attrNames catalogue)
       (s: lib.optionalString (cfg.greeting.command != "") (greetingGuard s cfg.greeting.command));
+
+    nixsh.underlaySources = lib.genAttrs (lib.attrNames catalogue)
+      (s: lib.concatStringsSep "\n\n"
+        (map underlayBlock (lib.filter (u: u.shell == s) (underlayFor "shell"))));
+
+    nixsh.underlayFiles = underlayFor "files";
+
+    nixsh.underlayPackages =
+      lib.unique (map (u: u.package) (lib.filter (u: u.package != null) underlayList));
 
     # Alias values are wrapped in SINGLE quotes, per-shell-escaped, never bare double quotes: a
     # value containing its own embedded `"` -- an SSH remote command is the common real case,
