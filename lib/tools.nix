@@ -326,6 +326,32 @@
       nixpkgs = "wget";
       note = "the other fundamental fetch tool alongside curl. It names ordinary Arch and nixpkgs packages, so a selection declares the same capability on every supported plane.";
     };
+    rsync = {
+      arch = "rsync";
+      nixpkgs = "rsync";
+      note = ''
+        delta-transfer file copier and synchroniser -- compares source and destination and moves
+        only the differing blocks, over ssh or its own daemon protocol.
+
+        FILED IN THIS GROUP RATHER THAN `core`, even though it copies local files perfectly well,
+        for the same reason curl/wget/termscp sit here beside the packet-capture and
+        path-diagnostic tools: what distinguishes rsync from `cp` is a REMOTE transport and the
+        delta algorithm that exists to make one cheap. A purely local copy is what `cp` is for; the
+        moment a colon appears in the path this is the tool, and that is a network capability.
+        (This group's own header calls itself "network diagnostics"; the transfer clients already
+        outnumber the diagnostics in it, which is the honest state of the shelf rather than a
+        drift to correct here.)
+
+        NO DISPLAY MODE AT ALL, so it clears this catalogue's admission test outright -- no
+        argument needed about defaults, unlike the mpv exception the header documents.
+
+        Verified (2026-08-08): `pacman -Si rsync` resolves in an official repository (`extra`
+        upstream, served as a `cachyos-extra-v3` rebuild on a v3 host -- a rebuild of the Arch
+        repo, not a derivative-only package), archlinux.org's package search confirms one result
+        in `extra`, and the AUR RPC returns zero. So `aur` stays unset, which is the direction
+        that cannot abort a pacman transaction. `nixpkgs.rsync` forces to a real derivation.
+      '';
+    };
   };
 
   # ── Structured data: JSON / YAML / CSV ──────────────────────────────────────────────────────
