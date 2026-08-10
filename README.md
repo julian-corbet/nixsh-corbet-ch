@@ -60,6 +60,32 @@ catalogue selection either, only its shell-integration hooks (see below).
 | `nixosModules.nixsh` | yes (`environment.systemPackages` + `environment.shells`) | yes (`environment.systemPackages`, force-evaluated) | no | no |
 | `systemManagerModules.nixsh` | no — publishes `nixsh.archPackages` | no — publishes `nixsh.tools.archPackages`/`.aurPackages` | no | no |
 
+### What that stance costs, and how nixsh pays it back
+
+Leaving `programs.<shell>.enable` false has one consequence that is neither obvious nor loud.
+home-manager renders `home.sessionVariables` and `home.sessionPath` into a single script,
+`hm-session-vars.sh`, and sources it from nowhere itself. Everything that *does* source it —
+`~/.profile` in home-manager's bash module, `~/.zshenv` and `~/.zprofile` in its zsh module,
+`config.fish` in its fish module — lives inside `mkIf cfg.enable`, gated on the option nixsh
+deliberately leaves false. On such a host that file is built, installed into the profile, and read
+by nothing: every variable and every PATH entry the user declared exists in the config and nowhere
+on the machine. No error, no warning — PATH is just short, and a program home-manager installed is
+on disk but not findable by name.
+
+So wherever the home-manager backend owns the rc file, it sources that script itself, **first** —
+above the underlay and above everything nixsh renders, because both of those are config that may
+read the environment as they load. bash and zsh get a `.` line naming the store path (not a profile
+directory, which varies with how home-manager was installed); fish gets home-manager's own answer
+to "fish cannot source POSIX" — a babelfish translation of the same file — as
+`conf.d/00-nixsh-session-vars.fish`, sorting below both the underlay and nixsh's own drop-in.
+
+There is no option to turn this off. It restores values the user already declared, and the file
+guards itself against a second sourcing, so it composes with a host that also gets them some other
+way rather than fighting it. What it reaches is the **interactive** shell, which is the shell nixsh
+configures: a *login* bash reads `~/.bash_profile`/`~/.profile`, not `~/.bashrc`, and nixsh does not
+write those — creating `~/.bash_profile` where a distro ships `~/.profile` shadows it outright,
+which is the clobbering this backend exists to avoid.
+
 ## The tool catalogue
 
 `nixsh.tools.*` — shells, TUIs, CLI tools, and their configs, in one platform-neutral selection
@@ -219,11 +245,34 @@ Rendered by the **home-manager backend only** — the same boundary `nixsh.tools
 for the same reason. `nixosModules.nixsh` warns rather than silently doing nothing if a shared
 config file declares one.
 
-## loginShell is recorded, not enforced
+## loginShell is applied where that is safe, recorded everywhere else
 
-`nixsh.loginShell` states intent. It does not run `chsh`: the login shell lives in `/etc/passwd`,
-which is system state no module should rewrite from under a running session. You get the declared
-value and something to check drift against.
+`nixsh.loginShell` names the shell. `nixsh.loginShellUsers` names the users it is actually **set**
+for; empty by default, so composing this module never moves an existing account's shell by surprise.
+
+Only `nixosModules.nixsh` applies it. There a login shell is ordinary declarative config —
+`users.users.<name>.shell`, written into `/etc/passwd` by the same activation that installs the
+shell and lists it in `/etc/shells`, and put back by a rollback. Nothing is mutated behind the
+system's back:
+
+```nix
+nixsh.fish.enable = true;
+nixsh.loginShell = "fish";
+nixsh.loginShellUsers = [ "yourname" ];
+```
+
+The definition lands at priority 500 — above NixOS's own default, below a host that states a user's
+shell directly, so pinning one account still wins without `mkForce`. `users.defaultUserShell` is
+never touched; it would move every other account on the box too.
+
+The home-manager and Arch backends deliberately do not act on it. `/etc/passwd` is system state, not
+`$HOME`, so home-manager has no business there; and on a foreign distro the declarative owner is
+that distro's own user layer reading this value, not a `chsh` fired at activation time. Both still
+carry the declaration for such a reconciler to consume, and for drift to be checked against.
+
+**Enabling the shell is not optional when you list users.** Pointing `/etc/passwd` at a binary the
+system never installs costs those users every login, ssh and physical console alike, so the NixOS
+backend asserts on it rather than letting it build.
 
 ## Adoption
 

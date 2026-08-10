@@ -2,7 +2,7 @@
 
 Throwaway trials: spikes, one-off scripts, things tried and abandoned or not yet worth writing up.
 Nothing here is guaranteed to work, be maintained, or survive the next cleanup pass — except the
-five files below.
+six files below.
 
 `render-smoke-test.nix` is kept here deliberately rather than promoted into `checks/` (which is
 `nix flake check`-wired): it exercises the pre-existing shell-rendering system
@@ -27,6 +27,11 @@ decides whether a catalogue name resolves for them.
   distro base sourced first loses every collision to nixsh's own content sourced after it, and to
   establish where fish actually places a numbered `conf.d` drop-in (which is not where fish's
   documentation implies — see `../studies/fish-conf-d-order-is-per-directory.md`).
+- `session-vars-render.nix` — renders `../modules/home.nix` against a REAL home-manager evaluation
+  and reads back whether `home.sessionVariables`/`home.sessionPath` actually reached each shell:
+  that they are sourced at all on a host where `programs.<shell>.enable` is false, that the path is
+  the store one rather than a profile directory, that the line lands above everything nixsh renders,
+  and that the composed route is left to home-manager instead of being duplicated.
 - `underlay-files-merge.sh` — the `layer = "files"` half, which has no source order to lean on:
   transcribes the activation logic `../modules/home.nix` emits, runs it against a fixture through
   a full switch cycle, and reads the resulting directory back. Also drives micro itself through a
@@ -36,7 +41,9 @@ decides whether a catalogue name resolves for them.
 The last two are kept here rather than promoted into `checks/` for the reason the whole file
 split turns on: they need REAL shell and editor BINARIES on the machine running them, which a
 `nix flake check` derivation has no business depending on. `../checks/underlay-eval.nix` covers
-the half that is pure policy.
+the half that is pure policy. `session-vars-render.nix` is here for the sibling reason: it needs a
+real home-manager, and taking one as a flake input would push it into every consumer's lock file to
+serve nothing but a test.
 
 If something in here turns out to matter in a different way, distill the actual finding into
 [`../studies/`](../studies/README.md) and let the experiment stay disposable (or delete it).

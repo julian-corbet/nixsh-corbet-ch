@@ -23,6 +23,21 @@
 # (modules/arch.nix, the host's own reconciler) on Arch and `environment.systemPackages`
 # (modules/nixos.nix) on NixOS -- this backend's whole job stays config, on both surfaces alike.
 #
+# WHAT THE CONFIG-ONLY STANCE COSTS, AND WHY THIS BACKEND PAYS IT BACK. Leaving
+# `programs.<shell>.enable` false is not free, and the bill arrives somewhere nobody looks:
+# `home.sessionVariables` and `home.sessionPath`. home-manager's home-environment module renders
+# both into exactly ONE artifact -- `hm-session-vars.sh`, a package it installs into the profile --
+# and sources it from nowhere itself. Every reader of that file lives in a per-shell module
+# (`programs/bash.nix` writes it into `~/.profile`, `programs/zsh.nix` into `~/.zshenv` and
+# `~/.zprofile`, `programs/fish.nix` into `config.fish`), and every one of those modules' `config`
+# blocks sits inside `mkIf cfg.enable`. So on a host that takes this backend's stance, the file is
+# built, installed, and read by nothing at all: every variable and every PATH entry the user
+# declared is inert -- no eval error, no warning, no output difference, exactly the silent class the
+# `fishProgramsOrphaned` assertion below exists for, arriving from the opposite direction (there a
+# HOST's content renders to nothing; here home-manager's own does). Where this backend owns the rc
+# file it is the only writer left, so it sources that file itself, first. See `hmSessionVars` in the
+# `let` below for the placement, the path, and why there is no option to switch it off.
+#
 # THE UNDERLAY IS THIS BACKEND'S TOO (`nixsh.underlay`, declared in modules/nixsh.nix), and it is
 # the one place the "compose, never clobber" stance above stops being enough on its own. Composing
 # says our content coexists with everyone else's. The underlay says something stronger: the
@@ -38,7 +53,7 @@
 #           choice made here.
 #   files   Two activation-script steps around home-manager's own file linking. See the `files`
 #           branch below.
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 let
   cfg = config.nixsh;
 
@@ -61,6 +76,84 @@ let
     lib.concatStringsSep "\n" (lib.filter (x: x != "") [ cfg.underlaySources.${shell} (body shell) ]);
 
   underlayFiles = cfg.underlayFiles;
+
+  # ── home-manager's own session variables ─────────────────────────────────────────────────────
+  #
+  # THE FILE. `home.sessionVariables`, `home.sessionPath` (which reaches it as
+  # `home.sessionSearchVariables.PATH`) and `home.sessionVariablesExtra` all render into one
+  # generated script, `etc/profile.d/hm-session-vars.sh` inside the package
+  # `config.home.sessionVariablesPackage`. That option is declared and defined in home-environment's
+  # UNGATED config block, so it is readable here whatever any `programs.<shell>.enable` says -- the
+  # gate is on the sourcing, never on the rendering, which is precisely why the failure is silent.
+  #
+  # THE PACKAGE, NOT A PROFILE DIRECTORY. The obvious spelling is
+  # `${config.home.profileDirectory}/etc/profile.d/hm-session-vars.sh`, and it is the wrong one to
+  # reach for. `profileDirectory` is a THREE-way branch -- `/etc/profiles/per-user/$USER` only when
+  # home-manager runs as a NixOS/nix-darwin submodule AND `useUserPackages` is on,
+  # `$XDG_STATE_HOME/nix/profile` under `nix.useXdg`, `~/.nix-profile` otherwise -- so a backend
+  # spelling it that way has to be right about the consumer's installation shape, and has to guard
+  # the result's existence at runtime against having guessed wrong. The store path is the same file
+  # under every one of those layouts, so the question does not arise; it is also what home-manager's
+  # OWN bash, zsh and fish modules interpolate, rather than the profile form. Interpolating it into
+  # an rc file additionally makes it a REFERENCE of the generation that file belongs to, so it
+  # cannot be collected out from under a live shell -- the guarantee an existence test would only
+  # have papered over. Hence a bare `.` with no `[ -r ]` around it, matching home-manager's own.
+  hmSessionVars = "${config.home.sessionVariablesPackage}/etc/profile.d/hm-session-vars.sh";
+
+  # NO OPTION GUARDS THIS, deliberately. Everything else this backend renders is a choice with two
+  # defensible answers -- which shells, which distro base, whether to greet -- and gets an option
+  # for exactly that reason. "The variables I declared do not exist" is not one of those: an opt-out
+  # would exist only to put a host back into the state where `home.sessionVariables` reads as
+  # configuration and is not. Nor is one needed for composition, which is the usual reason a
+  # sourcing line earns a switch: the generated file opens with its own `__HM_SESS_VARS_SOURCED`
+  # guard and returns immediately on a second entry, so on a host where something ELSE already
+  # sources it (a login shell that reached `~/.profile`, `targets.genericLinux`, home-manager's own
+  # `config.fish` where `programs.fish.enable` is true) nixsh's line is a no-op rather than a
+  # conflict. A user who genuinely wants these values gone deletes the declaration, which is the
+  # option that already exists.
+  #
+  # SOURCED FIRST -- above the underlay, above everything `rcFiles` carries. Both layers below it
+  # are CONFIG and may read the environment as they load: the distro base legitimately inspects
+  # PATH, and nixsh's own `interactiveInit` and greeting invocation run commands that have to be
+  # findable. Environment before config is the only order in which either of those can be relied on.
+  #
+  # WHAT THIS REACHES, AND WHAT IT DOES NOT. nixsh owns one file per shell, and for the POSIX pair
+  # that file is the INTERACTIVE rc (`~/.bashrc`, `~/.zshrc` -- lib/shells.nix's `rcPath`). bash
+  # reads `~/.bashrc` for interactive non-login shells only; a LOGIN bash reads `/etc/profile` and
+  # then the first of `~/.bash_profile`, `~/.bash_login`, `~/.profile`, none of which exist on such
+  # a host, since the one home-manager writes comes from the same gated module. So a `su -` or a tty
+  # login still starts without these variables, and nixsh does not answer that by writing those
+  # files: creating `~/.bash_profile` where a distro ships `~/.profile` SHADOWS it outright -- bash
+  # reads only the first that exists -- which is the clobbering note 1 of this file's header
+  # refuses. The interactive shell is what nixsh configures; login belongs to whoever owns login on
+  # that host.
+  hmSessionVarsSource = ''
+    # home-manager's own home.sessionVariables/home.sessionPath. Sourced here because nothing else
+    # on this host does: every home-manager module that would is gated behind programs.<shell>.enable,
+    # which nixsh deliberately leaves false. Re-sourcing is a no-op (the file guards itself).
+    . "${hmSessionVars}"
+  '';
+
+  # fish cannot source that file: it is POSIX, and fish is not -- `export`, `$?`, `[ -n ... ]` and a
+  # bare `return` are all either syntax errors or different operations there. home-manager's own
+  # fish module answers this by TRANSLATING the script at build time with babelfish and sourcing the
+  # result, and this reproduces that recipe rather than rendering fish `set -gx` lines from
+  # `home.sessionVariables` directly. Re-rendering would look simpler and would be wrong twice over:
+  # `home.sessionVariablesExtra` is free-form POSIX contributed by OTHER modules (it is `types.lines`
+  # and internal, so its content is whatever they wrote, not a value nixsh could re-emit), and
+  # `home.sessionSearchVariables` -- how `home.sessionPath` actually arrives -- renders as a
+  # `${PATH:+:}$PATH` append whose semantics live in the shell, not in the attribute set.
+  #
+  # The wrapper function is not decoration: babelfish faithfully translates the file's leading
+  # `return` guard, and `return` outside a function is an error in fish. home-manager wraps for the
+  # same reason, and calls the function immediately after defining it.
+  hmSessionVarsFish = pkgs.runCommandLocal "nixsh-hm-session-vars.fish" { } ''
+    (echo "# Generated by nixsh (home-manager session variables). Do not edit."
+     echo "function __nixsh_hm_session_vars;"
+     ${pkgs.buildPackages.babelfish}/bin/babelfish <${hmSessionVars}
+     echo "end"
+     echo "__nixsh_hm_session_vars") > $out
+  '';
 
   # ── The `files` layer, as two activation steps ───────────────────────────────────────────────
   #
@@ -232,6 +325,26 @@ in
     # there), but it also means `/etc/fish/conf.d` and every vendor conf.d directory are sourced
     # AFTER both of them regardless of what they are called. Those are not the layer this option
     # is about, and no numbering available here could reach them.
+    # Session variables, BELOW the underlay -- so below everything, which is where the environment
+    # belongs. Both `00-` files, and the tie breaks on the name: within one directory fish sorts by
+    # filename, and after the shared `00-nixsh-` prefix `s` precedes `u`. That is a deliberate use
+    # of the sort, not a coincidence being relied on -- the numbering convention above has no room
+    # below `00-` and did not need any until now, and renumbering the underlay to make room would
+    # spend the documented `01-`..`49-` space a consumer is invited to use.
+    #
+    # UNCONDITIONAL ON `programs.fish.enable`, unlike the POSIX pair below, because for fish the
+    # gate is not the only problem. Where the option is false, home-manager writes no `config.fish`
+    # at all and these values reach nothing. Where it is true, home-manager's `config.fish` does
+    # source its own translation -- but conf.d runs BEFORE `config.fish` (fish's own config.fish
+    # sources the conf.d directories as the last part of initialization, and the user's
+    # `config.fish` is read after that), so without this file nixsh's `50-nixsh.fish` would still
+    # execute in a shell where the declared PATH does not exist yet. Sourcing it here fixes both
+    # cases, and costs nothing in the second: the file returns immediately when home-manager's copy
+    # runs a moment later.
+    (lib.mkIf cfg.fish.enable {
+      xdg.configFile."fish/conf.d/00-nixsh-session-vars.fish".source = hmSessionVarsFish;
+    })
+
     (lib.mkIf (cfg.fish.enable && cfg.underlaySources.fish != "") {
       xdg.configFile."fish/conf.d/00-nixsh-underlay.fish".text = ''
         # Generated by nixsh (nixsh.underlay). Do not edit.
@@ -288,12 +401,21 @@ in
     # after home-manager's earlier sections but before every line nixsh contributes, which is the
     # guarantee this mechanism actually makes. In the owned-file route it is the first thing in the
     # file, full stop.
+    #
+    # `hmSessionVarsSource` on the OWNED branch only, above even that. The two routes differ in who
+    # else is writing: on the `initExtra` route home-manager's own bash/zsh module is active and
+    # writes `~/.profile`/`~/.zshenv`/`~/.zprofile`, which is where it has decided these variables
+    # belong -- nixsh appending a second source into the interactive rc would be overriding that
+    # decision in the one case where the module that owns it is present (a host that wants it there
+    # anyway has `targets.genericLinux`, home-manager's own answer for exactly that). On the owned
+    # branch there is no such module: nixsh's file is the only one written, so it is this or nothing.
     (lib.mkIf cfg.bash.enable (lib.mkMerge [
       (lib.mkIf config.programs.bash.enable { programs.bash.initExtra = layered "bash"; })
       (lib.mkIf (!config.programs.bash.enable) {
         home.file.".bashrc".text = ''
           # Managed by nixsh (home-manager backend). programs.bash.enable is false on this host, so
           # nixsh owns this file outright rather than appending to home-manager's own.
+          ${hmSessionVarsSource}
           ${layered "bash"}
         '';
       })
@@ -305,6 +427,7 @@ in
         home.file.".zshrc".text = ''
           # Managed by nixsh (home-manager backend). programs.zsh.enable is false on this host, so
           # nixsh owns this file outright rather than appending to home-manager's own.
+          ${hmSessionVarsSource}
           ${layered "zsh"}
         '';
       })
