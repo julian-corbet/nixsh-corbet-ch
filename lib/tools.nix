@@ -776,6 +776,42 @@
     serpl = { arch = "serpl"; nixpkgs = "serpl"; note = "search-and-replace TUI across a project tree, VS Code's own find-and-replace panel as a terminal tool."; };
     glow = { arch = "glow"; nixpkgs = "glow"; note = "markdown renderer -- README/docs read as formatted text in the terminal instead of raw source."; };
     slumber = { arch = "slumber"; nixpkgs = "slumber"; note = "REST client TUI -- request collections, environments, chained requests; a terminal-native alternative to a GUI client like Postman/Insomnia."; };
+    gum = {
+      arch = "gum";
+      nixpkgs = "gum";
+      note = ''
+        builds the interactive parts of a shell script: `gum choose` renders a selection list,
+        `gum input`/`gum confirm` a prompt, `gum filter` a fuzzy search over stdin, `gum spin` a
+        spinner around a long-running command. Each writes its result to stdout and nothing else,
+        so a plain `#!/bin/sh` gets a real terminal UI without linking a TUI library or
+        hand-rolling `read` and ANSI escapes.
+
+        A SCRIPT CALLS IT, A PERSON DOES NOT, which is why it is here rather than in `core`. Every
+        entry in that group is something typed at a prompt, and `core` is what a consumer selects
+        as the everyday floor for a host -- so a name in it lands on every machine that merely
+        wanted a working `ls`. gum is a dependency of whatever scripts a particular host runs,
+        which is a per-host question, not a floor.
+
+        NOT `integrate` EITHER, despite being shell-adjacent. That group's defining trait is a
+        tool that provides NOTHING until an rc hook is rendered for it (see its own header); gum
+        needs no hook, no rc line and no cooperation from the shell at all -- it is an ordinary
+        binary, invoked by name, from any shell or none.
+
+        Verified (2026-08-10) the way this file's header requires. Arch: `pacman -Si gum` resolves
+        in an official repository, and archlinux.org's own package search returns exactly one
+        result -- `extra`, 0.17.0-1 -- so the `cachyos-extra-v3` copy a v3 host actually installs
+        is a rebuild of that Arch package rather than a derivative-only one; the AUR RPC returns
+        zero, so `aur` stays unset, which is the direction that cannot abort a pacman transaction.
+        nixpkgs: the attribute was FORCED to a `.drvPath` rather than merely looked up, and gives
+        `gum-0.17.0`. Both platforms are on 0.17.0 and both homepages resolve to
+        github.com/charmbracelet/gum. The command surface -- this file's own third failure class,
+        and a separate question from either name resolving -- matches: one binary `gum` on each,
+        plus bash, fish and zsh completions and a man page on both. The lone difference is what
+        the bash completion is CALLED (`gum.bash` in nixpkgs, `gum` on Arch), and it costs
+        nothing: bash-completion's dynamic loader tries `$cmdname.bash` beside `$cmdname` in every
+        directory it searches.
+      '';
+    };
     bash-completion = {
       arch = "bash-completion";
       nixpkgs = "bash-completion";

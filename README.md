@@ -101,7 +101,7 @@ visidata), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus, exiftool, mediainfo,
 imagemagick), `archive` (p7zip, unzip, zip, unar, cabextract), `integrity` (mp3val, flac, shntool,
 hashdeep, rhash, par2cmdline), `comms` (aerc, gomuks,
 newsboat), `record` (vhs, asciinema — terminal *session* recording, not screen recording; that
-stays nixrecord's), `misc` (navi, serpl, glow, slumber).
+stays nixrecord's), `misc` (navi, serpl, glow, slumber, gum).
 
 Two of those groups answer questions the others don't, and are worth naming separately. `archive`
 is how you *get at* arbitrary incoming data — tar/gzip/bzip2/xz/zstd/cpio are deliberately absent,

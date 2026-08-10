@@ -30,7 +30,7 @@ let
     integrity = [ "mp3val" "flac" "shntool" "hashdeep" "rhash" "par2cmdline" ];
     comms = [ "aerc" "gomuks" "newsboat" ];
     record = [ "vhs" "asciinema" ];
-    misc = [ "navi" "serpl" "glow" "slumber" "bash-completion" "man-db" "man-pages" ];
+    misc = [ "navi" "serpl" "glow" "slumber" "gum" "bash-completion" "man-db" "man-pages" ];
   };
 
   coreOnly = evalWith { core = [ "ripgrep" "fzf" ]; };
@@ -52,8 +52,8 @@ let
     # comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
     # term it belongs to, and a label that no longer adds up is itself the signal that one of the
     # two was forgotten.
-    "every group contributes to \`selected\` (16+4+4+7+4+8+7+4+9+5+6+3+2+7 = 86)" =
-      lib.length full.selected == 86;
+    "every group contributes to \`selected\` (16+4+4+7+4+8+7+4+9+5+6+3+2+8 = 87)" =
+      lib.length full.selected == 87;
 
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "shntool" "timg" ];
