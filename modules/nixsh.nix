@@ -527,9 +527,38 @@ in
       description = ''
         Which shell is the login shell. null leaves it alone.
 
-        Recorded rather than enforced: changing a login shell is `chsh` against /etc/passwd, which
-        is system state this module has no business rewriting from under a running session. What
-        this gives you is the declared intent, and something to check drift against.
+        On its own this is a DECLARATION — it names the intent and gives drift something to be
+        checked against. `loginShellUsers` is what turns it into an applied fact, and only on a
+        backend that can apply it declaratively; see that option.
+      '';
+    };
+
+    loginShellUsers = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      example = [ "richc" ];
+      description = ''
+        Users whose login shell is actually SET to `loginShell`, rather than merely compared
+        against it. Empty (the default) keeps `loginShell` a pure declaration, so composing this
+        module can never move an existing user's shell by surprise.
+
+        ── ONLY THE NixOS BACKEND APPLIES THIS ─────────────────────────────────────────────────
+        There, a login shell is ordinary declarative config: `users.users.<name>.shell`, rendered
+        into /etc/passwd by the same activation that installs the shell and lists it in
+        /etc/shells. Nothing is mutated behind the system's back, and a rollback moves it back.
+
+        The home-manager and Arch backends deliberately do NOT act on it. A user's login shell is
+        /etc/passwd, which is system state and not $HOME, so home-manager has no business there;
+        and on a foreign distro the declarative owner is that distro's own user layer (userborn,
+        or whatever the host's reconciler drives) reading this value, not a `chsh` fired from a
+        shell-config module at activation time. Both still expose the declaration for such a
+        reconciler to consume.
+
+        ── THE LOCKOUT THIS GUARDS AGAINST ─────────────────────────────────────────────────────
+        Naming a user here whose shell is not also enabled (`nixsh.<shell>.enable`) would point
+        /etc/passwd at a binary the system never installs, which costs that user every login —
+        ssh and physical console alike. The NixOS backend asserts against exactly that rather
+        than letting it build.
       '';
     };
 

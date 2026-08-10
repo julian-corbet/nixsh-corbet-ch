@@ -144,5 +144,35 @@ in
       # and zsh above), and this backend has no reason to touch that default either way.
       programs.bash.interactiveShellInit = cfg.greetingInvocations.bash;
     })
+
+    # ── The one backend that can APPLY `loginShell` ──────────────────────────────────────────
+    # On NixOS a login shell is ordinary declarative config rather than the `chsh` against live
+    # /etc/passwd that `loginShellUsers`' own doc rules out elsewhere: the same activation that
+    # puts the shell in `environment.systemPackages` and `environment.shells` (both above, always)
+    # writes /etc/passwd, and a rollback puts it back. So the objection that kept this option inert
+    # -- "system state this module has no business rewriting from under a running session" -- is
+    # true of every other backend and simply not true of this one.
+    #
+    # PRIORITY 500, which is neither `mkDefault` nor a plain definition, and both alternatives are
+    # wrong here. NixOS's own users-groups.nix already defines every user's `shell` at mkDefault
+    # (1000) from `users.defaultUserShell`, so a second mkDefault collides -- "defined multiple
+    # times while it's expected to be unique", which is what a first attempt at this actually hit.
+    # A plain definition (100) would win, but would then also outrank a HOST that pins one user's
+    # shell for its own reason, forcing it to mkForce out of the way. 500 sits between the two:
+    # it beats the platform default, and a host that states a shell directly still beats it.
+    #
+    # `users.defaultUserShell` is deliberately NOT touched: it would move every unlisted account on
+    # the box, including ones no consumer of this module knows about, which is exactly the surprise
+    # the empty `loginShellUsers` default exists to prevent.
+    (lib.mkIf (cfg.loginShell != null && cfg.loginShellUsers != [ ]) {
+      assertions = [{
+        assertion = cfg.${cfg.loginShell}.enable;
+        message = "nixsh.loginShellUsers is set (${lib.concatStringsSep ", " cfg.loginShellUsers}) with nixsh.loginShell = \"${cfg.loginShell}\", but nixsh.${cfg.loginShell}.enable is false. This backend installs only the shells it enables, so /etc/passwd would point at a binary the system never puts on disk and every listed user would lose ssh AND physical-console login -- the exact lockout knowledge/hosts/server/systemd-ordering-cycle-lockout.md records. Set nixsh.${cfg.loginShell}.enable = true, or clear nixsh.loginShellUsers.";
+      }];
+
+      users.users = lib.genAttrs cfg.loginShellUsers (_: {
+        shell = lib.mkOverride 500 pkgs.${catalogue.${cfg.loginShell}.nixpkgs};
+      });
+    })
   ];
 }
