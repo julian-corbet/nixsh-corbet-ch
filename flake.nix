@@ -45,6 +45,12 @@
         underlay-eval = import ./checks/underlay-eval.nix {
           pkgs = nixpkgs.legacyPackages.${system};
         };
+        # The home backend's systemd-user PATH projection. Its rendered value carries a LITERAL
+        # ''${PATH} for environment.d to expand later, and Nix expanding it instead is a silent,
+        # session-wide wrong PATH rather than an error -- see that file's own header.
+        systemd-user-path-eval = import ./checks/systemd-user-path-eval.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+        };
       });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);

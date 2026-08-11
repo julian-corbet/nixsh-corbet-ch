@@ -519,6 +519,41 @@ in
         default = [ ];
         description = "Directories prepended to PATH in every enabled shell.";
       };
+
+      systemdUserPath = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Also give `path` to the systemd USER MANAGER, so background services see the same PATH
+          a shell does. Home backend only; a no-op elsewhere.
+
+          WHY THIS IS NOT AUTOMATIC, AND WHY YOU PROBABLY WANT IT ON. `path` above reaches SHELLS
+          -- interactive ones, and (for fish, whose conf.d is read on every invocation) `ssh host
+          'cmd'` too. It does NOT reach anything systemd starts for the user: a session service, a
+          timer, or anything a compositor or launcher spawns, because those inherit the user
+          manager's own environment and nothing else.
+
+          So the same name resolves two different ways on one machine depending on who asks, and
+          the failure is silent in the direction that matters. Three real ones, all on hosts where
+          the shell PATH was perfectly correct:
+
+            · a dock service exiting 203/EXEC -- systemd's own word for "cannot execute" -- on a
+              binary that `command -v` finds instantly;
+            · a rofi script mode dying mid-launch with FileNotFoundError on a wrapper that works
+              when pasted into a terminal, closing the window with nothing started and nothing
+              logged;
+            · `ssh <host> claude` failing on a machine where claude is installed, because the
+              installer's prefix reached the shell and not the manager.
+
+          Every one of those was diagnosed as a broken binary or a broken launcher first. None of
+          them was.
+
+          OFF BY DEFAULT because it rewrites PATH for every user service on the machine, which is
+          not a change a module should make to somebody's session because they set a directory
+          list. Turning it on is the state where the two agree; leaving it off is the state where
+          "works in my terminal" is a meaningful sentence.
+        '';
+      };
     };
 
     loginShell = lib.mkOption {
