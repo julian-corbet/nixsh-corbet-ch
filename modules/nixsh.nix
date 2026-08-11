@@ -552,6 +552,22 @@ in
           not a change a module should make to somebody's session because they set a directory
           list. Turning it on is the state where the two agree; leaving it off is the state where
           "works in my terminal" is a meaningful sentence.
+
+          ⚠ IT TAKES EFFECT AT THE NEXT LOGIN, NOT AT ACTIVATION, and nothing warns you. The user
+          manager runs its environment generators only when it STARTS. Verified on a live session
+          rather than assumed: with the file written and correct, `systemctl --user daemon-reload`
+          AND `systemctl --user daemon-reexec` both left the manager's PATH unchanged, and a
+          freshly started service still could not find the binary. So a `switch` that looks
+          completely successful changes nothing about the session you are sitting in, and the
+          natural conclusion -- that the option does not work -- is wrong.
+
+          To apply it to a session already running, without logging out:
+
+              systemctl --user set-environment PATH=<the value from environment.d, expanded>
+
+          That is transient by design and is superseded by this file at the next login. Restarting
+          `user@<uid>.service` would also do it and takes the whole graphical session with it,
+          which on a machine someone is sitting at is not an improvement.
         '';
       };
     };
