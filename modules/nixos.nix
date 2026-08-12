@@ -63,6 +63,41 @@ let
     then t.nixpkgsOverride pkgs
     else lib.getAttrFromPath (lib.splitString "." t.nixpkgs) pkgs;
 
+  # `nixpkgsDesktop`: give the tool the menu entry it is supposed to have on this plane -- see
+  # lib/tools.nix's own header for the two defects this exists for (nixpkgs shipping none where
+  # Arch ships one, and nixpkgs shipping one that names the wrapper instead of the program).
+  #
+  # symlinkJoin, NOT overrideAttrs, and the difference is the whole reason this is affordable.
+  # `overrideAttrs` to append a `postInstall` invalidates the derivation and rebuilds the package
+  # FROM SOURCE -- for neovim, on a host that was only ever going to substitute a binary. A join
+  # is a tree of symlinks built in a second: the one entry gets replaced with a real file and
+  # every other path still points into the original store output, cache intact.
+  #
+  # `meta` is carried across explicitly. symlinkJoin does not inherit it, and dropping it would
+  # take `meta.mainProgram` with it -- which other modules in this family read to find a package's
+  # binary, so losing it breaks consumers a long way from here for no visible reason.
+  withDesktop = t: pkg:
+    if !(t ? nixpkgsDesktop) then pkg else
+    let
+      d = t.nixpkgsDesktop;
+      text = lib.concatStringsSep "\n"
+        ([ "[Desktop Entry]" ] ++ lib.mapAttrsToList (k: v: "${k}=${v}") d.entry);
+      file = pkgs.writeText d.file "${text}\n";
+    in
+    pkgs.symlinkJoin {
+      name = "${lib.getName pkg}-${lib.getVersion pkg}-desktop";
+      paths = [ pkg ];
+      # `rm -f` first: when the package already ships the entry, $out holds a SYMLINK to the
+      # original file, and writing through it would attempt to modify a read-only store path.
+      # When it ships none, this is a no-op and the directory may not exist yet.
+      postBuild = ''
+        mkdir -p $out/share/applications
+        rm -f $out/share/applications/${d.file}
+        cp ${file} $out/share/applications/${d.file}
+      '';
+      inherit (pkg) meta;
+    };
+
   toolsNamed = lib.filter (t: t.nixpkgs != null) cfg.tools.selected;
   toolsEvaluated = map
     (t: {
@@ -81,7 +116,7 @@ in
     {
       environment.systemPackages =
         (map (s: pkgs.${catalogue.${s}.nixpkgs}) enabled)
-        ++ (lib.unique (map resolveTool toolsInstallable));
+        ++ (lib.unique (map (t: withDesktop t (resolveTool t)) toolsInstallable));
       environment.shells = map (s: pkgs.${catalogue.${s}.nixpkgs}) enabled;
 
       warnings =

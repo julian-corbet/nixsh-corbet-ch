@@ -51,6 +51,14 @@
         systemd-user-path-eval = import ./checks/systemd-user-path-eval.nix {
           pkgs = nixpkgs.legacyPackages.${system};
         };
+        # The one BUILD check in here. `nixpkgsDesktop` claims something about a file on disk, and
+        # every interesting way for that to be false survives an eval -- see that file's header.
+        # Takes `nixpkgs` itself, not just a package set: it evaluates a real NixOS system, which
+        # is the only way to see what this backend actually installs.
+        desktop-entry = import ./checks/desktop-entry.nix {
+          inherit nixpkgs;
+          pkgs = nixpkgs.legacyPackages.${system};
+        };
       });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);

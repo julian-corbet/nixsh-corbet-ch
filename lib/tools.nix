@@ -63,6 +63,29 @@
 # reads `nixpkgsOverride` at all, only `arch`/`aur`. See the `visidata` entry below for the one
 # case that needs it today, and its own note for why.
 #
+# `nixpkgsDesktop` (optional, `{ file, entry }`) states what this tool's `.desktop` entry must say
+# on the NixOS plane. It exists because the two planes are supposed to deliver the SAME tool, and
+# for a handful of entries nixpkgs and Arch disagree about the menu rather than the binary:
+#
+#   · nixpkgs ships NO entry where Arch ships one. `zellij` is the case: the binary is installed
+#     and works, and every launcher and menu on the machine is simply blind to it. On a fleet whose
+#     launcher draws one column per machine, that reads as "this host does not have zellij", which
+#     is false.
+#   · nixpkgs ships an entry that is WRONG. `neovim` is the case: nixpkgs builds it through
+#     `wrapNeovim` and the wrapper derivation's name reaches `Name=`, so the menu offers "Neovim
+#     wrapper" while Arch's says "Neovim". Same program, same `Exec=nvim %F`.
+#
+# THE WHOLE ENTRY IS DECLARED, not a patch of selected keys. Two reasons, and the second is the
+# one that matters: a key-patching implementation needs `sed` over values this file supplies, which
+# is an escaping bug waiting to happen; and an entry that inherits unnamed keys from upstream can
+# drift the moment upstream edits them, which is exactly the silent divergence this field exists to
+# end. Stated in full, what the menu shows is reviewable here.
+#
+# NOT gated on `lean`, unlike `nixpkgsOverride`. Leanness is a per-host trade about size; a menu
+# entry that names the wrong program is wrong on every host that has it, and a host cannot
+# meaningfully opt into being told the truth. The Arch backend ignores this field entirely -- Arch
+# already ships these correctly, which is how the disagreement was noticed at all.
+#
 # Every (arch, nixpkgs) pair below was verified against a REAL system, not guessed: `pacman -Si
 # <name>` against a live CachyOS host for the Arch side, and a force-evaluating `nix-instantiate
 # --eval` (not `hasAttrByPath` alone -- see experiments/validate-nixpkgs-names.nix's own header
@@ -216,7 +239,31 @@
   # ── Editors and multiplexers ────────────────────────────────────────────────────────────────
   edit = {
     helix = { arch = "helix"; nixpkgs = "helix"; note = "modal editor with LSP/tree-sitter built in, no plugin step required."; };
-    neovim = { arch = "neovim"; nixpkgs = "neovim"; note = "terminal-first Vim successor with an extensible Lua configuration surface."; };
+    neovim = {
+      arch = "neovim";
+      nixpkgs = "neovim";
+      # nixpkgs builds this through `wrapNeovim`, and the WRAPPER derivation's name lands in
+      # `Name=` -- so the menu reads "Neovim wrapper" while Arch's identical program reads
+      # "Neovim". Copied from the generated entry with that one word removed; `Exec`/`TryExec` are
+      # verbatim, because a corrected entry that also drifted there would be a second and silently
+      # different way to start the editor.
+      nixpkgsDesktop = {
+        file = "nvim.desktop";
+        entry = {
+          Type = "Application";
+          Name = "Neovim";
+          GenericName = "Text Editor";
+          Comment = "Edit text files";
+          TryExec = "nvim";
+          Exec = "nvim %F";
+          Terminal = "true";
+          Icon = "nvim";
+          Categories = "Utility;TextEditor;Development;";
+          MimeType = "text/plain;";
+        };
+      };
+      note = "terminal-first Vim successor with an extensible Lua configuration surface.";
+    };
     nano = { arch = "nano"; nixpkgs = "nano"; note = "small terminal editor, retained as the dependable low-friction edit path."; };
     nano-syntax-highlighting = { arch = "nano-syntax-highlighting"; nixpkgs = "nano-syntax-highlighting"; note = "community syntax definitions for Nano; depends on Nano and extends its highlighting coverage."; };
     emacs-nox = {
@@ -265,7 +312,32 @@
         `nixsh.underlay` (modules/nixsh.nix) rather than by anything in this catalogue entry.
       '';
     };
-    zellij = { arch = "zellij"; nixpkgs = "zellij"; note = "terminal multiplexer with a discoverable default keybinding layer (on-screen hints) -- tmux's own opposite design choice."; };
+    zellij = {
+      arch = "zellij";
+      nixpkgs = "zellij";
+      # nixpkgs ships NO desktop entry; Arch's package does. So on a NixOS host the binary is
+      # installed, works, and is invisible to every launcher and menu on the machine -- which on a
+      # fleet launcher whose axis is machines reads as "this host does not have zellij".
+      #
+      # Transcribed from Arch's own `/usr/share/applications/zellij.desktop` rather than composed,
+      # so the two planes present the identical entry. `Name` is the one addition: Arch's file
+      # omits it and relies on the filename, which is legal and which some launchers render as
+      # "zellij" and others as blank.
+      nixpkgsDesktop = {
+        file = "zellij.desktop";
+        entry = {
+          Type = "Application";
+          Name = "Zellij";
+          GenericName = "Terminal Multiplexer";
+          Comment = "Manage Your Terminal Applications";
+          Exec = "zellij";
+          Terminal = "true";
+          Icon = "zellij";
+          Categories = "ConsoleOnly;System;";
+        };
+      };
+      note = "terminal multiplexer with a discoverable default keybinding layer (on-screen hints) -- tmux's own opposite design choice.";
+    };
     tmux = { arch = "tmux"; nixpkgs = "tmux"; note = "terminal multiplexer -- the older, script/plugin-ecosystem-heavy alternative to zellij; catalogued as a genuine second choice, not superseded by it."; };
   };
 
