@@ -107,6 +107,8 @@ in
         purpose (shells' binary requirement -- must be the SYSTEM's copy, /etc/shells, login --
         does not apply to an ordinary CLI tool, so keeping the lists apart keeps that distinction
         visible at the call site rather than merging two different kinds of "must be installed").
+        A custom `package` resolver is absent from this list: modules/arch.nix installs that
+        derivation through system-manager because no pacman package exists to name.
       '';
     };
 
@@ -117,7 +119,8 @@ in
         Selections that live in the AUR rather than an official repo, kept SEPARATE because
         `pacman -S` cannot resolve them -- it fails the whole transaction with "target not
         found", taking the rest of the converge down with it. Wire them to the AUR side:
-        `nixarch.packages.aur = config.nixsh.tools.aurPackages;`.
+        `nixarch.packages.aur = config.nixsh.tools.aurPackages;`. Custom `package` resolvers are
+        absent here for the same reason as `archPackages`: the Arch backend installs them itself.
       '';
     };
 
@@ -138,7 +141,8 @@ in
       type = lib.types.listOf lib.types.str;
       readOnly = true;
       description = ''
-        Selections with `nixpkgs = null` in the catalogue, surfaced rather than silently dropped
+        Selections with `nixpkgs = null` and no custom `package` resolver in the catalogue,
+        surfaced rather than silently dropped
         -- for TWO distinct reasons a reader of this list alone cannot tell apart, so don't assume
         either one from membership here: no nixpkgs equivalent exists at all (the original,
         exhaustive-until-now reason this option was added, matching nixmedia's own identical
@@ -174,13 +178,16 @@ in
   config = {
     nixsh.tools.selected = selected;
     nixsh.tools.archPackages =
-      lib.unique (map (t: t.arch) (lib.filter (t: !(t.aur or false)) selected));
+      lib.unique (map (t: t.arch)
+        (lib.filter (t: t.arch != null && !(t.aur or false) && !(t ? package)) selected));
     nixsh.tools.aurPackages =
-      lib.unique (map (t: t.arch) (lib.filter (t: t.aur or false) selected));
+      lib.unique (map (t: t.arch)
+        (lib.filter (t: t.arch != null && (t.aur or false) && !(t ? package)) selected));
     nixsh.tools.nixosPackages =
       lib.unique (map (t: t.nixpkgs) (lib.filter (t: t.nixpkgs != null) selected));
     nixsh.tools.unavailableOnNixos =
-      lib.unique (map (t: t.arch) (lib.filter (t: t.nixpkgs == null) selected));
+      lib.unique (map (t: t.arch)
+        (lib.filter (t: t.nixpkgs == null && !(t ? package)) selected));
 
     nixsh.tools.shellHooks = lib.genAttrs shells (s:
       lib.concatStringsSep "\n" (lib.filter (x: x != "")

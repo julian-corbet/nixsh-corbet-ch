@@ -46,6 +46,14 @@
 # is load-bearing: `pacman -S` fails the WHOLE transaction on an AUR name with "target not found",
 # taking every other package in the same converge down with it.
 #
+# `package` (optional, a function `pkgs -> derivation`) is narrower: it exists only when upstream
+# publishes the tool but neither platform package source carries it. Such an entry sets both
+# `arch` and `nixpkgs` to null so a deceptively similar distro name can never be selected by
+# accident. Both system backends call the function with the CONSUMER's package set and install the
+# resulting system-level derivation; home-manager remains config-only. This is not an override of
+# a distro package -- if either normal source gains the real project, replace the function with
+# the ordinary name mapping so the system owns that binary in the usual way.
+#
 # `nixpkgsOverride` (optional, a function `pkgs -> derivation`) is the escape hatch for an entry
 # whose bare nixpkgs attribute is the wrong thing to install as-is -- the identical shape
 # `integrate`'s own `shellHook` (`shell -> string`) already establishes for "this needs a function
@@ -844,6 +852,24 @@
 
   # ── Misc ─────────────────────────────────────────────────────────────────────────────────────
   misc = {
+    crow = {
+      arch = null;
+      nixpkgs = null;
+      package = pkgs: pkgs.callPackage ../packages/crow-cli.nix { };
+      note = ''
+        Crow CI's command-line client: lint workflow files, inspect pipelines and logs, and start
+        deliberately scoped manual workflows against a Crow server. The executable is `crow` and
+        the upstream component/release artifact is named `crow-cli`.
+
+        Neither normal platform package source carries THIS project. Arch's repositories have no
+        Crow CI package; the AUR's `crow` is the crowcpp C++ web framework. nixpkgs' `pkgs.crow` is
+        that same unrelated framework. Mapping either deceptively plausible name here would put a
+        working but completely wrong `crow` package in the host closure. `package` therefore
+        resolves the pinned, statically linked official release in packages/crow-cli.nix and both
+        system backends install that derivation directly. The home-manager backend remains
+        config-only and never creates a second per-user copy.
+      '';
+    };
     navi = { arch = "navi"; nixpkgs = "navi"; note = "interactive cheatsheet -- fzf-driven, fills in command placeholders rather than just displaying a static tldr page."; };
     serpl = { arch = "serpl"; nixpkgs = "serpl"; note = "search-and-replace TUI across a project tree, VS Code's own find-and-replace panel as a terminal tool."; };
     glow = { arch = "glow"; nixpkgs = "glow"; note = "markdown renderer -- README/docs read as formatted text in the terminal instead of raw source."; };

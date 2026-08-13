@@ -30,7 +30,7 @@ let
     integrity = [ "mp3val" "flac" "shntool" "hashdeep" "rhash" "par2cmdline" ];
     comms = [ "aerc" "gomuks" "newsboat" ];
     record = [ "vhs" "asciinema" ];
-    misc = [ "navi" "serpl" "glow" "slumber" "gum" "bash-completion" "man-db" "man-pages" ];
+    misc = [ "crow" "navi" "serpl" "glow" "slumber" "gum" "bash-completion" "man-db" "man-pages" ];
   };
 
   coreOnly = evalWith { core = [ "ripgrep" "fzf" ]; };
@@ -52,8 +52,19 @@ let
     # comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
     # term it belongs to, and a label that no longer adds up is itself the signal that one of the
     # two was forgotten.
-    "every group contributes to \`selected\` (16+4+4+7+4+8+7+4+9+5+6+3+2+8 = 87)" =
-      lib.length full.selected == 87;
+    "every group contributes to \`selected\` (16+4+4+7+4+8+7+4+9+5+6+3+2+9 = 88)" =
+      lib.length full.selected == 88;
+
+    "Crow CI uses its custom package resolver, never the unrelated Arch/AUR/nixpkgs crowcpp package" =
+      let c = lib.findFirst (t: (t.package or null) != null) null full.selected; in
+      c != null
+      && c.arch == null
+      && c.nixpkgs == null
+      && builtins.isFunction c.package
+      && !(has full.archPackages "crow")
+      && !(has full.archPackages "crow-cli")
+      && !(has full.aurPackages "crow")
+      && !(has full.nixosPackages "crow");
 
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "shntool" "timg" ];

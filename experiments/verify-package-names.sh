@@ -27,7 +27,7 @@ catalogue_arch_names() {
     let
       cat = import ./lib/tools.nix { };
       entries = builtins.concatLists (map builtins.attrValues (builtins.attrValues cat));
-      want = builtins.filter (t: (t.aur or false) == ${aur}) entries;
+      want = builtins.filter (t: t.arch != null && (t.aur or false) == ${aur}) entries;
     in builtins.concatStringsSep \" \" (map (t: t.arch) want)
   " | sed 's/^"//; s/"$//'
 }

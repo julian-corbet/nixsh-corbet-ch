@@ -58,7 +58,7 @@ catalogue selection either, only its shell-integration hooks (see below).
 |---|---|---|---|---|
 | `homeModules.nixsh` | no | no | yes | yes (`nixsh.tools.integrate` only) |
 | `nixosModules.nixsh` | yes (`environment.systemPackages` + `environment.shells`) | yes (`environment.systemPackages`, force-evaluated) | no | no |
-| `systemManagerModules.nixsh` | no — publishes `nixsh.archPackages` | no — publishes `nixsh.tools.archPackages`/`.aurPackages` | no | no |
+| `systemManagerModules.nixsh` | no — publishes `nixsh.archPackages` | publishes distro names and installs only custom packages absent from Arch/AUR | no | no |
 
 ### What that stance costs, and how nixsh pays it back
 
@@ -127,7 +127,7 @@ visidata), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus, exiftool, mediainfo,
 imagemagick), `archive` (p7zip, unzip, zip, unar, cabextract), `integrity` (mp3val, flac, shntool,
 hashdeep, rhash, par2cmdline), `comms` (aerc, gomuks,
 newsboat), `record` (vhs, asciinema — terminal *session* recording, not screen recording; that
-stays nixrecord's), `misc` (navi, serpl, glow, slumber, gum).
+stays nixrecord's), `misc` (crow, navi, serpl, glow, slumber, gum).
 
 Two of those groups answer questions the others don't, and are worth naming separately. `archive`
 is how you *get at* arbitrary incoming data — tar/gzip/bzip2/xz/zstd/cpio are deliberately absent,

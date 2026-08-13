@@ -49,8 +49,10 @@ let
   # own pacman/AUR split, e.g. timg is withheld from it because it needs an AUR helper on Arch;
   # that distinction means nothing on NixOS, which has no AUR at all).
   #
-  # `resolveTool` is the one place `nixpkgsOverride` (lib/tools.nix's own header documents the
-  # field) actually gets called: an entry that carries one installs THAT derivation instead of the
+  # `resolveTool` handles the two function-valued catalogue fields documented in lib/tools.nix.
+  # A custom `package` is unconditional because it is the only implementation of that entry;
+  # `nixpkgsOverride` is the opt-in lean alternative to an ordinary mapped package. An entry that
+  # carries the latter installs THAT derivation instead of the
   # bare `pkgs.<nixpkgs>` lookup -- visidata, today, trimmed of nixpkgs' own 37 propagated optional
   # inputs (see that entry's own note) -- but ONLY when this host has opted in via `nixsh.tools.lean
   # = true;` (see that option's own doc in modules/tools.nix). Default is `lean = false`, so by
@@ -59,9 +61,16 @@ let
   # reaches `t ? nixpkgsOverride` -- the `&&` short-circuits -- so an entry can carry the field
   # without it doing anything until the host asks for it.
   resolveTool = t:
-    if cfg.tools.lean && (t ? nixpkgsOverride)
+    if t ? package
+    then t.package pkgs
+    else if cfg.tools.lean && (t ? nixpkgsOverride)
     then t.nixpkgsOverride pkgs
     else lib.getAttrFromPath (lib.splitString "." t.nixpkgs) pkgs;
+
+  toolLabel = t:
+    if t.nixpkgs != null then t.nixpkgs
+    else if t.arch != null then t.arch
+    else "custom package";
 
   # `nixpkgsDesktop`: give the tool the menu entry it is supposed to have on this plane -- see
   # lib/tools.nix's own header for the two defects this exists for (nixpkgs shipping none where
@@ -98,7 +107,7 @@ let
       inherit (pkg) meta;
     };
 
-  toolsNamed = lib.filter (t: t.nixpkgs != null) cfg.tools.selected;
+  toolsNamed = lib.filter (t: t.nixpkgs != null || t ? package) cfg.tools.selected;
   toolsEvaluated = map
     (t: {
       inherit t;
@@ -107,7 +116,7 @@ let
     toolsNamed;
   toolsInstallable = map (r: r.t) (lib.filter (r: r.try.success) toolsEvaluated);
   toolsStaleMappings = map
-    (r: "nixsh: nixpkgs attribute \"${r.t.nixpkgs}\" (catalogue arch name \"${r.t.arch}\") no longer resolves -- lib/tools.nix's mapping is stale, most likely a nixpkgs rename")
+    (r: "nixsh: package resolver \"${toolLabel r.t}\" no longer resolves -- inspect lib/tools.nix and its package source")
     (lib.filter (r: !r.try.success) toolsEvaluated);
 in
 {

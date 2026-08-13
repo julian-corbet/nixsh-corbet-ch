@@ -1,13 +1,10 @@
 {
   description = "nixsh — every shell on every machine, declared, plus the terminal-native tool catalogue: shared environment, per-shell config, shell-integration hooks, and every binary left to the system";
 
-  # nixpkgs is used ONLY by this flake's own `checks` below (proving the tools module resolves
-  # selections correctly, and separately -- see experiments/validate-nixpkgs-names.nix -- that
-  # every catalogued nixpkgs name still force-evaluates on a real package set), exactly the
-  # boundary nixmedia's own flake.nix draws. The exported modules (homeModules/nixosModules/
-  # systemManagerModules) never see this input: they take `pkgs`/`config`/`lib` from whichever
-  # evaluation composes them. Composing this flake can never add a second nixpkgs to a consumer's
-  # closure -- still true after this input's addition, since nothing exported reaches into it.
+  # nixpkgs is used by this flake's own `checks` and exported `packages` below. The exported
+  # modules (homeModules/nixosModules/systemManagerModules) never see this input: they take
+  # `pkgs`/`config`/`lib` from whichever evaluation composes them, including for the pinned Crow
+  # package. Composing this flake therefore cannot add a second nixpkgs to a consumer's closure.
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
@@ -34,6 +31,18 @@
       lib.toolsPolicy = ./modules/tools.nix;
       lib.toolsCatalogue = import ./lib/tools.nix { };
 
+      # Crow publishes a statically linked CLI but neither Arch/AUR nor nixpkgs carries it (the
+      # packages named `crow` in both are the unrelated crowcpp web framework). Export the pinned
+      # upstream release so both system backends can install the actual `crow` command.
+      packages = forAllSystems (system:
+        let
+          package = nixpkgs.legacyPackages.${system}.callPackage ./packages/crow-cli.nix { };
+        in
+        {
+          crow-cli = package;
+          default = package;
+        });
+
       # `nix flake check` does not evaluate `homeModules`/`nixosModules`/`systemManagerModules` on
       # its own -- see nixmedia's own checks/catalogue-eval.nix header for the exact mechanism
       # this repeats. A green `nix flake check` on this repo without this file would cover nothing
@@ -57,6 +66,14 @@
         # is the only way to see what this backend actually installs.
         desktop-entry = import ./checks/desktop-entry.nix {
           inherit nixpkgs;
+          pkgs = nixpkgs.legacyPackages.${system};
+        };
+        crow-cli = import ./checks/crow-cli.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          crowCli = self.packages.${system}.crow-cli;
+        };
+        crow-cli-backends = import ./checks/crow-cli-backends.nix {
+          inherit nixpkgs system;
           pkgs = nixpkgs.legacyPackages.${system};
         };
       });

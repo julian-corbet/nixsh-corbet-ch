@@ -19,9 +19,10 @@
 # Doing so on Arch would be the identical second-binary trap one layer up (a home-manager `bat`
 # ahead of pacman's own on PATH), for tools that have even less reason to need it than a login
 # shell does: nothing else on the box links against `ripgrep` the way login itself execs
-# `/etc/shells`' own shell. Installing is `nixsh.tools.archPackages`/`.aurPackages`
-# (modules/arch.nix, the host's own reconciler) on Arch and `environment.systemPackages`
-# (modules/nixos.nix) on NixOS -- this backend's whole job stays config, on both surfaces alike.
+# `/etc/shells`' own shell. Installing is `nixsh.tools.archPackages`/`.aurPackages` through the
+# host's own reconciler plus modules/arch.nix's system-level custom packages on Arch, and
+# `environment.systemPackages` through modules/nixos.nix on NixOS -- this backend's whole job
+# stays config on both surfaces alike.
 #
 # WHAT THE CONFIG-ONLY STANCE COSTS, AND WHY THIS BACKEND PAYS IT BACK. Leaving
 # `programs.<shell>.enable` false is not free, and the bill arrives somewhere nobody looks:
