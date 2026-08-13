@@ -24,7 +24,6 @@ let
 
   selected = lib.flatten [
     (map (k: cat.core.${k}) cfg.core)
-    (map (k: cat.build.${k}) cfg.build)
     (map (k: cat.integrate.${k}) cfg.integrate)
     (map (k: cat.nav.${k}) cfg.nav)
     (map (k: cat.edit.${k}) cfg.edit)
@@ -43,7 +42,6 @@ in
 {
   options.nixsh.tools = {
     core = mkGroup "core CLI tools (search, list, view -- the everyday reach-fors)" cat.core;
-    build = mkGroup "native build toolchains (large, deliberate host capabilities)" cat.build;
     integrate = mkGroup "shell-integration tools (need an rc hook -- see \`shellHooks\` below, and lib/tools.nix's own header)" cat.integrate;
     nav = mkGroup "file/navigation TUIs" cat.nav;
     edit = mkGroup "editors and multiplexers" cat.edit;

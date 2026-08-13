@@ -18,7 +18,6 @@ let
 
   full = evalWith {
     core = [ "bat" "eza" "tree" "fd" "ripgrep" "fzf" "delta" "dust" "duf" "hexyl" "file" "tokei" "cloc" "tealdeer" "bc" "pigz" ];
-    build = [ "gcc" ];
     integrate = [ "starship" "atuin" "direnv" "zoxide" ];
     nav = [ "yazi" "broot" "superfile" "ncdu" ];
     edit = [ "helix" "neovim" "nano" "nano-syntax-highlighting" "micro" "zellij" "tmux" ];
@@ -49,16 +48,12 @@ let
       h.fish == "" && h.bash == "" && h.zsh == "";
 
     # The label spells out the per-group arithmetic in the SAME ORDER the fixture above lists its
-    # groups (core, build, integrate, nav, edit, git, system, network, data, media, archive,
-    # integrity, comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
+    # groups (core, integrate, nav, edit, git, system, network, data, media, archive, integrity,
+    # comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
     # term it belongs to, and a label that no longer adds up is itself the signal that one of the
     # two was forgotten.
-    "every group contributes to \`selected\` (16+1+4+4+7+4+8+7+4+9+5+6+3+2+8 = 88)" =
-      lib.length full.selected == 88;
-
-    "gcc resolves on both package planes as the toolchain that supplies cc" =
-      has full.archPackages "gcc"
-      && has full.nixosPackages "gcc";
+    "every group contributes to \`selected\` (16+4+4+7+4+8+7+4+9+5+6+3+2+8 = 87)" =
+      lib.length full.selected == 87;
 
     "AUR entries stay isolated from the pacman transaction" =
       lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "shntool" "timg" ];
