@@ -118,7 +118,7 @@ two dozen formats it opens, so reading a database is something it *can* do rathe
 *for*.
 
 Groups: `core` (bat, eza, tree, fd, ripgrep, repgrep, fzf, delta, dust, duf, hexyl, file, tokei,
-cloc, tealdeer, bc, pigz),
+cloc, tealdeer, bc, pigz), `build` (gcc, including the conventional `cc` linker command),
 `integrate` (starship, atuin, direnv, zoxide — see below), `nav` (yazi, broot, superfile, ncdu), `edit`
 (helix, neovim, nano, nano-syntax-highlighting, micro, zellij, tmux), `git` (lazygit, gitui, github-cli,
 gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker, lsof, hwinfo, wev), `network` (bandwhich, trippy,
@@ -146,6 +146,7 @@ that puts content *back* rather than merely reporting its loss.
 
   nixsh.tools = {
     core = [ "ripgrep" "fzf" "eza" ];
+    build = [ "gcc" ];
     integrate = [ "starship" "direnv" ];
     nav = [ "yazi" ];
     edit = [ "helix" "tmux" ];

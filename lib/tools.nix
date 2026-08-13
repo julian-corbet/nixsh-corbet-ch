@@ -168,6 +168,19 @@
     pigz = { arch = "pigz"; nixpkgs = "pigz"; note = "gzip replacement, parallel across every core instead of one -- the same reach-for upgrade `dust`/`duf` above already are for `du`/`df`."; };
   };
 
+  # ── Build toolchains ───────────────────────────────────────────────────────────────────────
+  #
+  # These are terminal-native programs, but they are not everyday shell furniture: selecting a
+  # compiler is a deliberate host capability with a materially larger closure than `core`. Keep
+  # that decision visible in its own group rather than hiding it among viewers and search tools.
+  build = {
+    gcc = {
+      arch = "gcc";
+      nixpkgs = "gcc";
+      note = "GNU C/C++ compiler toolchain. Provides the conventional `cc` command that Rust build scripts and other native builds invoke as their platform linker.";
+    };
+  };
+
   # ── Shell integration: need an rc HOOK, not just a binary ──────────────────────────────────
   #
   # Why these three are their own group rather than sitting in `core`: home-manager's OWN
