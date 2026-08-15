@@ -1,15 +1,15 @@
 { lib, stdenvNoCC, fetchurl }:
 
 let
-  version = "6.4.0";
+  version = "6.5.0";
   sources = {
     "x86_64-linux" = {
       arch = "amd64";
-      hash = "sha256-Gwmlas1ceDMnzj2LzartPeF3hClGAOvdOX91zcB+NQQ=";
+      hash = "sha256-xRuUNvtxh7O9J7UHqkpgbWrxvNcy7+r5EHaMlkeCmmc=";
     };
     "aarch64-linux" = {
       arch = "arm64";
-      hash = "sha256-AOtDdAiI07fcfx8YBhpqxyxrUHYTu9ABxRs0So5MW54=";
+      hash = "sha256-DGS/vtQgFp2Y24q2fx8EIO2PpR2jnux7LDPYNNOZooA=";
     };
   };
   source = sources.${stdenvNoCC.hostPlatform.system} or
