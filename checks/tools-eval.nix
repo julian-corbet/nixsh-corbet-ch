@@ -25,7 +25,7 @@ let
     system = [ "btop" "bottom" "s-tui" "isd" "lazydocker" "lsof" "hwinfo" "wev" ];
     network = [ "bandwhich" "trippy" "gping" "termscp" "curl" "wget" "rsync" ];
     data = [ "jq" "yq" "jless" "visidata" ];
-    media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "cmus" "exiftool" "mediainfo" "imagemagick" ];
+    media = [ "ffmpeg" "mpv" "yt-dlp" "chafa" "timg" "tdf" "pdf-cli" "termpdf" "cmus" "exiftool" "mediainfo" "imagemagick" ];
     archive = [ "p7zip" "unzip" "zip" "unar" "cabextract" ];
     integrity = [ "mp3val" "flac" "shntool" "hashdeep" "rhash" "par2cmdline" ];
     comms = [ "aerc" "gomuks" "newsboat" ];
@@ -52,11 +52,11 @@ let
     # comms, record, misc) -- so adding a tool to the fixture means editing both the total and the
     # term it belongs to, and a label that no longer adds up is itself the signal that one of the
     # two was forgotten.
-    "every group contributes to \`selected\` (16+4+4+7+4+8+7+4+9+5+6+3+2+9 = 88)" =
-      lib.length full.selected == 88;
+    "every group contributes to \`selected\` (16+4+4+7+4+8+7+4+12+5+6+3+2+9 = 91)" =
+      lib.length full.selected == 91;
 
     "Crow CI uses its custom package resolver, never the unrelated Arch/AUR/nixpkgs crowcpp package" =
-      let c = lib.findFirst (t: (t.package or null) != null) null full.selected; in
+      let c = lib.findFirst (t: t.arch == null && t.nixpkgs == null && (t.package or null) != null) null full.selected; in
       c != null
       && c.arch == null
       && c.nixpkgs == null
@@ -67,7 +67,18 @@ let
       && !(has full.nixosPackages "crow");
 
     "AUR entries stay isolated from the pacman transaction" =
-      lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "shntool" "timg" ];
+      lib.sort (a: b: a < b) full.aurPackages == [ "gh-dash" "hashdeep" "mp3val" "pdf-cli" "shntool" "termpdf-git" "timg" ];
+
+    "all three PDF readers resolve on both system planes without shadowing Arch's own packages" =
+      let t = lib.findFirst (entry: entry.arch == "termpdf-git") null full.selected; in
+      has full.archPackages "tdf"
+      && has full.nixosPackages "tdf"
+      && has full.aurPackages "pdf-cli"
+      && has full.nixosPackages "pdf-cli"
+      && has full.aurPackages "termpdf-git"
+      && t != null
+      && t.nixpkgs == null
+      && builtins.isFunction (t.package or null);
 
     "terminal editors and GitHub tools resolve to their intended platform names" =
       has full.archPackages "neovim"

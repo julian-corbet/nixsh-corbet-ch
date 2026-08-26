@@ -107,8 +107,10 @@ in
         purpose (shells' binary requirement -- must be the SYSTEM's copy, /etc/shells, login --
         does not apply to an ordinary CLI tool, so keeping the lists apart keeps that distinction
         visible at the call site rather than merging two different kinds of "must be installed").
-        A custom `package` resolver is absent from this list: modules/arch.nix installs that
-        derivation through system-manager because no pacman package exists to name.
+        A custom `package` resolver is absent from this list only when `arch = null`:
+        modules/arch.nix installs that derivation through system-manager because no pacman/AUR
+        package exists to name. When an entry has both `arch` and `package` (termpdf), Arch keeps
+        the distro package named here and `package` is only the NixOS fallback.
       '';
     };
 
@@ -119,8 +121,10 @@ in
         Selections that live in the AUR rather than an official repo, kept SEPARATE because
         `pacman -S` cannot resolve them -- it fails the whole transaction with "target not
         found", taking the rest of the converge down with it. Wire them to the AUR side:
-        `nixarch.packages.aur = config.nixsh.tools.aurPackages;`. Custom `package` resolvers are
-        absent here for the same reason as `archPackages`: the Arch backend installs them itself.
+        `nixarch.packages.aur = config.nixsh.tools.aurPackages;`. An entry with `arch = null` and
+        a custom `package` resolver is absent here because the Arch backend installs it itself;
+        an entry that has an AUR name as well as a NixOS-only fallback (termpdf) stays in this
+        list and is not installed twice.
       '';
     };
 
@@ -179,10 +183,10 @@ in
     nixsh.tools.selected = selected;
     nixsh.tools.archPackages =
       lib.unique (map (t: t.arch)
-        (lib.filter (t: t.arch != null && !(t.aur or false) && !(t ? package)) selected));
+        (lib.filter (t: t.arch != null && !(t.aur or false)) selected));
     nixsh.tools.aurPackages =
       lib.unique (map (t: t.arch)
-        (lib.filter (t: t.arch != null && (t.aur or false) && !(t ? package)) selected));
+        (lib.filter (t: t.arch != null && (t.aur or false)) selected));
     nixsh.tools.nixosPackages =
       lib.unique (map (t: t.nixpkgs) (lib.filter (t: t.nixpkgs != null) selected));
     nixsh.tools.unavailableOnNixos =

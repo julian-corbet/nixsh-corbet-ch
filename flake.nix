@@ -31,16 +31,20 @@
       lib.toolsPolicy = ./modules/tools.nix;
       lib.toolsCatalogue = import ./lib/tools.nix { };
 
-      # Crow publishes a statically linked CLI but neither Arch/AUR nor nixpkgs carries it (the
-      # packages named `crow` in both are the unrelated crowcpp web framework). Export the pinned
-      # upstream release so both system backends can install the actual `crow` command.
+      # Export the two source-backed exceptions in the catalogue. Crow is absent from both normal
+      # package sources; termpdf exists in the AUR but not nixpkgs, so this derivation is the NixOS
+      # half only. The modules still call these files with the consumer's own `pkgs`; these outputs
+      # make each package directly buildable and give checks a first-class target.
       packages = forAllSystems (system:
         let
-          package = nixpkgs.legacyPackages.${system}.callPackage ./packages/crow-cli.nix { };
+          pkgs = nixpkgs.legacyPackages.${system};
+          crowCli = pkgs.callPackage ./packages/crow-cli.nix { };
+          termpdf = pkgs.callPackage ./packages/termpdf.nix { };
         in
         {
-          crow-cli = package;
-          default = package;
+          crow-cli = crowCli;
+          inherit termpdf;
+          default = crowCli;
         });
 
       # `nix flake check` does not evaluate `homeModules`/`nixosModules`/`systemManagerModules` on
@@ -76,6 +80,7 @@
           inherit nixpkgs system;
           pkgs = nixpkgs.legacyPackages.${system};
         };
+        termpdf = self.packages.${system}.termpdf;
       });
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);

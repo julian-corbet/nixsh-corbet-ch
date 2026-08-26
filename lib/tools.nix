@@ -46,13 +46,15 @@
 # is load-bearing: `pacman -S` fails the WHOLE transaction on an AUR name with "target not found",
 # taking every other package in the same converge down with it.
 #
-# `package` (optional, a function `pkgs -> derivation`) is narrower: it exists only when upstream
-# publishes the tool but neither platform package source carries it. Such an entry sets both
-# `arch` and `nixpkgs` to null so a deceptively similar distro name can never be selected by
-# accident. Both system backends call the function with the CONSUMER's package set and install the
-# resulting system-level derivation; home-manager remains config-only. This is not an override of
-# a distro package -- if either normal source gains the real project, replace the function with
-# the ordinary name mapping so the system owns that binary in the usual way.
+# `package` (optional, a function `pkgs -> derivation`) supplies the Nix-side package when
+# `nixpkgs = null`. The Arch backend still prefers the distro whenever `arch` names a package;
+# it installs this derivation itself only when `arch = null` too. That supports both shapes which
+# exist in the real package sources: Crow is absent from both and uses the custom derivation on
+# both system planes, while termpdf exists in the AUR but not nixpkgs and therefore uses the AUR
+# build on Arch and the pinned derivation on NixOS. This is not an override of a package the
+# relevant platform already carries -- if nixpkgs gains termpdf, or Arch/AUR gains Crow CI's real
+# client, replace that side with the ordinary name mapping so the system owns the binary in the
+# usual way. home-manager remains config-only in either case.
 #
 # `nixpkgsOverride` (optional, a function `pkgs -> derivation`) is the escape hatch for an entry
 # whose bare nixpkgs attribute is the wrong thing to install as-is -- the identical shape
@@ -620,6 +622,35 @@
       nixpkgs = "timg";
       note = "sixel-/kitty-graphics-protocol-aware terminal image and video viewer -- a genuine second choice alongside chafa, not a duplicate. AUR-only on Arch, an ordinary nixpkgs attribute -- already established by nixmedia's own studies/timg-arch-aur-only.md (github.com/julian-corbet/nixmedia-corbet-ch), which catalogues the same package for the same reason and reached the identical finding; not re-derived here.";
     };
+    tdf = {
+      arch = "tdf";
+      nixpkgs = "tdf";
+      note = "responsive PDF TUI with asynchronous page rendering, search and hot reload. Both platforms package the same itsjunetime/tdf project under the plain `tdf` name; Arch carries it in the official extra repository, so it belongs in the pacman transaction rather than the AUR side.";
+    };
+    pdf-cli = {
+      arch = "pdf-cli";
+      aur = true;
+      nixpkgs = "pdf-cli";
+      note = "PDF/EPUB/DOCX reader with high-resolution Sixel/Kitty/iTerm2 rendering, zoom, search, link navigation and live reload. AUR-only on Arch, an ordinary nixpkgs attribute; both package Yujonpradhananga/pdf-cli 2.0 and expose the `pdf-cli` command.";
+    };
+    termpdf = {
+      arch = "termpdf-git";
+      aur = true;
+      nixpkgs = null;
+      package = pkgs: pkgs.callPackage ../packages/termpdf.nix { };
+      note = ''
+        the original barebones graphical PDF reader for Kitty, iTerm2 and Sixel terminals. Arch
+        carries dsanson/termpdf as the AUR package `termpdf-git`; nixpkgs has no package, so the
+        NixOS side uses this repo's pinned source derivation. This is the asymmetric `package`
+        case documented in this file's header: Arch keeps its distro package, NixOS gets the same
+        upstream through Nix, and neither plane silently drops the selection.
+
+        Upstream is an old Bash implementation and explicitly calls itself a hack. It is kept as
+        a distinct third reader because its iTerm2 escape-sequence path and explicit `-sixel`
+        mode exercise different terminal protocols from tdf/pdf-cli, not because it is the
+        recommended default; tdf is the responsive everyday reader.
+      '';
+    };
     cmus = { arch = "cmus"; nixpkgs = "cmus"; note = "ncurses music library browser and player -- no GUI dependency, no display mode to have. The clean worked example for this file's own placement rule."; };
     exiftool = {
       arch = "perl-image-exiftool";
@@ -759,8 +790,10 @@
   # WHAT IS HERE AND WHAT IS NOT. Three of these are format-agnostic (`hashdeep`, `rhash`,
   # `par2cmdline` work on any bytes at all) and three cover audio specifically. The general decode
   # test for the video/container population is `ffmpeg` in `media` above -- catalogued once, there,
-  # not repeated here. Format-specific decoders beyond audio (PDF engines, raster validators) are
-  # not catalogued in nixsh at all; a host that ingests those formats declares them itself.
+  # not repeated here. The PDF readers in `media` prove that a page can be rendered; they are not
+  # validators and do not become integrity entries merely because their renderer decodes content.
+  # Dedicated PDF/raster validators are not catalogued here; a host that ingests those formats
+  # declares them itself.
   #
   # WHERE REDUNDANCY IS DELIBERATE. More than one tool per format is a design choice, not
   # duplication to tidy away: independent implementations fail differently, and this is measured

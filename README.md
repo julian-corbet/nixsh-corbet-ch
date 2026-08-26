@@ -123,8 +123,8 @@ cloc, tealdeer, bc, pigz),
 (helix, neovim, nano, nano-syntax-highlighting, micro, zellij, tmux), `git` (lazygit, gitui, github-cli,
 gh-dash), `system` (btop, bottom, s-tui, isd, lazydocker, lsof, hwinfo, wev), `network` (bandwhich, trippy,
 gping, termscp), `data` (jq, yq, jless,
-visidata), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, cmus, exiftool, mediainfo,
-imagemagick), `archive` (p7zip, unzip, zip, unar, cabextract), `integrity` (mp3val, flac, shntool,
+visidata), `media` (ffmpeg, mpv, yt-dlp, chafa, timg, tdf, pdf-cli, termpdf, cmus, exiftool,
+mediainfo, imagemagick), `archive` (p7zip, unzip, zip, unar, cabextract), `integrity` (mp3val, flac, shntool,
 hashdeep, rhash, par2cmdline), `comms` (aerc, gomuks,
 newsboat), `record` (vhs, asciinema — terminal *session* recording, not screen recording; that
 stays nixrecord's), `misc` (crow, navi, serpl, glow, slumber, gum).

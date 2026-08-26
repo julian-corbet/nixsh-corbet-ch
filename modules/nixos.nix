@@ -50,8 +50,9 @@ let
   # that distinction means nothing on NixOS, which has no AUR at all).
   #
   # `resolveTool` handles the two function-valued catalogue fields documented in lib/tools.nix.
-  # A custom `package` is unconditional because it is the only implementation of that entry;
-  # `nixpkgsOverride` is the opt-in lean alternative to an ordinary mapped package. An entry that
+  # A custom `package` is the Nix-side implementation of an entry whose `nixpkgs` is null; Arch
+  # may still name its own distro package for the same entry (termpdf), which this backend never
+  # reads. `nixpkgsOverride` is the opt-in lean alternative to an ordinary mapped package. An entry that
   # carries the latter installs THAT derivation instead of the
   # bare `pkgs.<nixpkgs>` lookup -- visidata, today, trimmed of nixpkgs' own 37 propagated optional
   # inputs (see that entry's own note) -- but ONLY when this host has opted in via `nixsh.tools.lean
